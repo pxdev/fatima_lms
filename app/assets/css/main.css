@@ -1,0 +1,43 @@
+@import 'tailwindcss';
+@import '@nuxt/ui';
+
+@theme static {
+
+    --font-rubik: 'rubik', sans-serif;
+    --text-tiny: 0.625rem;
+
+    --color-tickle-me-pink: oklch(74.732% 0.16911 358.3);
+    --color-tickle-me-pink-50: oklch(100% 0 none);
+    --color-tickle-me-pink-100: oklch(100% 0 none);
+    --color-tickle-me-pink-200: oklch(97.683% 0.01288 353.13);
+    --color-tickle-me-pink-300: oklch(89.496% 0.06233 354.14);
+    --color-tickle-me-pink-400: oklch(81.646% 0.11576 356.23);
+    --color-tickle-me-pink-500: oklch(74.732% 0.16911 358.3);
+    --color-tickle-me-pink-600: oklch(67.58% 0.22804 3.1456);
+    --color-tickle-me-pink-700: oklch(64.042% 0.25339 10.759);
+    --color-tickle-me-pink-800: oklch(54.885% 0.21934 12.008);
+    --color-tickle-me-pink-900: oklch(43.6% 0.17428 10.997);
+    --color-tickle-me-pink-950: oklch(37.695% 0.15075 9.8837);
+
+
+    --color-buttercup: oklch(76.859% 0.16466 70.08);
+    --color-buttercup-50: oklch(92.828% 0.05947 81.025);
+    --color-buttercup-100: oklch(90.797% 0.07524 80.389);
+    --color-buttercup-200: oklch(87.128% 0.10704 79.751);
+    --color-buttercup-300: oklch(83.36% 0.13435 78.216);
+    --color-buttercup-400: oklch(80.131% 0.15433 75.295);
+    --color-buttercup-500: oklch(76.859% 0.16466 70.08);
+    --color-buttercup-600: oklch(64.224% 0.13665 70.798);
+    --color-buttercup-700: oklch(50.603% 0.10641 71.626);
+    --color-buttercup-800: oklch(35.978% 0.07427 73.647);
+    --color-buttercup-900: oklch(19.902% 0.03866 83.983);
+    --color-buttercup-950: oklch(8.5603% 0.01756 94.54);
+
+}
+
+
+body {
+    background: #f9fafc;
+    font-family: var(--font-primary);
+
+}
