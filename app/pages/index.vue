@@ -51,10 +51,10 @@ const certificates = [
 
 const { $directus, $readItems } = useNuxtApp()
 
-const { data } = await useAsyncData('post', async () => {
+const { data } = await useAsyncData('plans', async () => {
   try {
     return await $directus.request(
-        $readItems('courses')
+        $readItems('plans')
     )
   } catch (error) {
     console.error(error)
