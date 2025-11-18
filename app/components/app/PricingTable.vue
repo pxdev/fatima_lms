@@ -62,7 +62,7 @@ const selectedCourse = ref(null);
           <!-- Plan Header -->
           <div class="text-center mb-6">
             <h3 class="text-xl md:text-2xl font-bold dark:text-white mb-2">
-              {{ plan.name }}
+              {{ plan.label }}
             </h3>
             <div class="dark:text-gray-300 text-sm" v-html="plan.description"/>
           </div>
