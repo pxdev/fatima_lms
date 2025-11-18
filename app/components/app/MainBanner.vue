@@ -43,22 +43,16 @@
               :text-size="21"
               container="h-32 w-32  border-primary bg-white"
               text="One to one Tutoring • Expert Instructor • Flexible Scheduling • "
-              class="absolute z-20 left-1/2 -translate-x-1/2 bottom-1/2 mx-auto "
+              class="absolute z-20 left-1/2 -translate-x-1/2 bottom-0 mx-auto "
               icon-name="hugeicons:online-learning-01"
           />
 
-          <video autoplay loop muted class="w-[280px] h-[600px] -translate-y-20 border-white rounded-4xl border-4 hover:scale-105 hover:rounded-xl transition-all duration-500" src="/video/1027(1).mp4"></video>
 
 
-          <nuxt-img
-              src="/images/banners/student_1.png"
-              class="h-auto hidden w-[280px]  -translate-y-20 border-white rounded-4xl border-4 hover:scale-105 hover:rounded-xl transition-all duration-500"
-              alt=""
-          />
 
           <nuxt-img
-              src="/images/banners/student_2.png"
-              class="h-auto w-[280px]  border-white rounded-4xl border-4 hover:scale-105 hover:rounded-xl transition-all duration-500"
+              src="/images/muslim_quran.png"
+              class="h-auto w-[450px]    hover:scale-105 hover:rounded-xl transition-all duration-500"
               alt=""
           />
 
