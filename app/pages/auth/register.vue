@@ -1,6 +1,6 @@
 <script setup>
 import { z } from 'zod'
-
+const { createUser } = useDirectusAuth();
 // ===============================
 // Validation Schema
 // ===============================
@@ -8,12 +8,7 @@ const schema = z.object({
   email: z.string().trim().email('Enter a valid email address'),
   name: z.string().trim().min(2, 'Name must be at least 2 characters'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  username: z
-      .string()
-      .trim()
-      .min(3, 'Username must be at least 3 characters')
-      .regex(/^[a-zA-Z0-9_]+$/, 'Username can only include letters, numbers, and underscores'),
-})
+ })
 
 // ===============================
 // Reactive State
@@ -22,42 +17,28 @@ const state = reactive({
   email: '',
   name: '',
   password: '',
-  username: '',
-})
+ })
 
 const errorMessage = ref('')
 const isLoading = ref(false)
 
-// ===============================
-// Watchers
-// ===============================
-watch(
-    () => [state.name, state.username, state.email, state.password],
-    () => {
-      if (errorMessage.value) errorMessage.value = ''
-    }
-)
 
 // ===============================
 // Form Submission
 // ===============================
-async function handleRegister(event) {
+const handleRegister = async (event) => {
   errorMessage.value = ''
   isLoading.value = true
 
   const formData = event?.data ?? state
-  const { name, username, email, password } = formData
+  const { first_name, last_name , email, password } = formData
 
   try {
-    await $fetch('/api/auth/register', {
-      method: 'POST',
-      body: { name, username, email, password },
-    })
+    await createUser( { email, password })
 
-    await navigateTo('/', { replace: true })
+    await navigateTo('/auth/login', { replace: true })
   } catch (err) {
-    errorMessage.value =
-        err?.data?.message || err?.message || 'Registration failed. Please try again.'
+    errorMessage.value = err?.data?.message || err?.message || 'Registration failed. Please try again.'
   } finally {
     isLoading.value = false
   }
@@ -88,7 +69,7 @@ async function handleRegister(event) {
       >
         <u-alert
             v-if="errorMessage"
-            color="red"
+            color="error"
             variant="soft"
             icon="i-heroicons-exclamation-triangle"
             :title="errorMessage"
@@ -105,16 +86,6 @@ async function handleRegister(event) {
           />
         </u-form-field>
 
-        <u-form-field label="Username" name="username">
-          <u-input
-              v-model="state.username"
-              class="w-full"
-              size="xl"
-              type="text"
-              autocomplete="username"
-              placeholder=""
-          />
-        </u-form-field>
 
         <u-form-field label="Email" name="email">
           <u-input

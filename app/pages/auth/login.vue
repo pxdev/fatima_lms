@@ -1,9 +1,9 @@
 <script setup>
 import {z} from "zod"
+const { login, loginWithProvider } = useDirectusAuth();
 
-const {openInPopup, loggedIn, fetch} = useUserSession()
 
-const schema = z.object({
+ const schema = z.object({
   email: z.string().trim().email('Enter a valid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters')
 });
@@ -18,19 +18,11 @@ const isLoading = ref(false);
 
 const handleLogin = async (event) => {
   errorMessage.value = '';
-
   isLoading.value = true;
-
   const {email, password} = event.data;
   try {
-    await $fetch('/api/auth/login', {
-      method: 'POST',
-      body: {
-        email,
-        password
-      }
-    });
-    await fetch()
+    await login({ email: email, password: password })
+    navigateTo('/account', { replace: true });
   } catch (err) {
     errorMessage.value = err?.data?.message || err?.message || 'Login failed. Please try again.';
   } finally {
@@ -39,16 +31,18 @@ const handleLogin = async (event) => {
 }
 
 
-watch(loggedIn, (isLogged) => {
-  if (isLogged) {
-    navigateTo('/account', {replace: true})
-  }
-}, {immediate: true})
+// watch($isAuthenticated, (isLogged) => {
+//   if (isLogged) {
+//     navigateTo('/account', {replace: true})
+//   }
+// }, {immediate: true})
 
 
 </script>
 
 <template>
+
+
   <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
 
     <u-card class="w-full max-w-md">
@@ -62,8 +56,7 @@ watch(loggedIn, (isLogged) => {
 
       <div class="pb-8 pt-4">
         <u-button
-            class="w-full" icon="material-icon-theme:google" block color="neutral" size="xl" variant="outline"
-            @click="openInPopup('/auth/google')">Login With Google
+            class="w-full" @click="loginWithProvider('google')" icon="material-icon-theme:google" block color="neutral" size="xl" variant="outline">Login With Google
         </u-button>
       </div>
 
@@ -72,8 +65,7 @@ watch(loggedIn, (isLogged) => {
       <u-form :state="state" :schema="schema" class="space-y-5" @submit.prevent="handleLogin">
         <u-alert
             v-if="errorMessage"
-            color="red"
-            variant="soft"
+            color="error"
             icon="i-heroicons-exclamation-triangle"
             :title="errorMessage"
         />

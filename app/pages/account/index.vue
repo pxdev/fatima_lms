@@ -1,6 +1,5 @@
 <script setup>
-import { computed, onMounted, watch } from "vue";
-import { useDateFormat } from "@vueuse/core";
+definePageMeta({middleware: ["auth"]})
 
 const accountNavigation = [
   {
@@ -36,8 +35,6 @@ const accountNavigation = [
 ]
 
 
-
-
 </script>
 
 <template>
@@ -70,7 +67,7 @@ const accountNavigation = [
 
         <div class="flex-1 space-y-6">
           <u-card>
-            <h2 class="text-2xl font-bold">Welcome again <span class="text-primary">{{ user.name }}</span></h2>
+            <h2 class="text-2xl font-bold">Welcome again <span class="text-primary">{{  }}</span></h2>
           </u-card>
 
         </div>

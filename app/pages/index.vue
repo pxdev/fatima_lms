@@ -1,5 +1,5 @@
 <script setup>
-
+const {getItems} = useDirectusItems();
 
 const certificates = [
   {
@@ -18,27 +18,14 @@ const certificates = [
   }
 ]
 
-const {$directus, $readItems} = useNuxtApp()
+const {data: plans} = await useAsyncData("plans", () => getItems({
+  collection: 'plans',
+}))
 
-const {data: plans} = await useAsyncData('plans', async () => {
-  try {
-    return await $directus.request(
-        $readItems('plans')
-    )
-  } catch (error) {
-    console.error(error)
-  }
-})
+const {data: courses} = await useAsyncData("courses", () => getItems({
+  collection: 'courses',
+}))
 
-const {data: courses} = await useAsyncData('courses', async () => {
-  try {
-    return await $directus.request(
-        $readItems('courses')
-    )
-  } catch (error) {
-    console.error(error)
-  }
-})
 
 </script>
 

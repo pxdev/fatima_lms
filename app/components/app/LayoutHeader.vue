@@ -1,31 +1,48 @@
 <script setup>
-
+const {getItems} = useDirectusItems();
 
 // ===============================
 // Navigation
 // ===============================
-const navLinks = [
-  {id: 1, label: ('Home'), to: ('/')},
-  {id: 2, label: ('About Us'), to: '/about'},
-  {id: 3, label: ('Courses'),
-    children: [
-      {id: 31, label: ('Beginner'), to: '/'},
-      {id: 32, label: ('Intermediate'), to: '/'},
-      {id: 33, label: ('Advanced'), to: '/'},
-    ]
-  },
-  {id: 4, label: ('Blog'), to: '/blog'},
-  {id: 5, label: ('Contact Us'), to: '/contact'},
-]
+// const navLinks = [
+//   {id: 1, label: ('Home'), to: ('/')},
+//   {id: 2, label: ('About Us'), to: '/about'},
+//   {
+//     id: 3, label: ('Courses'),
+//     children: [
+//       {id: 31, label: ('Beginner'), to: '/'},
+//       {id: 32, label: ('Intermediate'), to: '/'},
+//       {id: 33, label: ('Advanced'), to: '/'},
+//     ]
+//   },
+//   {id: 4, label: ('Blog'), to: '/blog'},
+//   {id: 5, label: ('Contact Us'), to: '/contact'},
+// ]
 
 const mobileMenuOpen = ref(false)
 
 
 const handleNavClick = () => (mobileMenuOpen.value = false)
 
+const {data: navLinks} = await useAsyncData("navigation", () => getItems({
+  collection: 'navigation',
+  params: {
+    fields: ['id', 'label', 'to', 'is_parent', 'status', 'children.id', 'children.label', 'children.to', 'children.is_parent', 'children.status'],
+    filter: {
+      is_parent: {
+        _eq: true
+      }
+    },
+    sort: ['order']
+  },
+
+}))
+
 </script>
 
 <template>
+
+
   <u-slideover v-model:open="mobileMenuOpen">
     <template #content>
       <div class="h-svh flex flex-col px-4">
@@ -57,7 +74,6 @@ const handleNavClick = () => (mobileMenuOpen.value = false)
         <div class="flex justify-between items-center py-4 border-t border-gray-200">
 
 
-
         </div>
       </div>
     </template>
@@ -76,7 +92,7 @@ const handleNavClick = () => (mobileMenuOpen.value = false)
         <!-- Actions -->
         <div class="hidden lg:flex items-center gap-4">
 
-          <profile-menu />
+          <profile-menu/>
 
 
         </div>

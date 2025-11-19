@@ -31,8 +31,14 @@ export default defineNuxtConfig({
         "@nuxt/icon",
         '@nuxt/image',
         '@vueuse/motion/nuxt',
+        'nuxt-directus'
     ],
     runtimeConfig: {
+        public: {
+            directus: {
+                url: ""
+            }
+        },
         oauth: {
             google: {
                 clientId: '',
@@ -76,7 +82,7 @@ export default defineNuxtConfig({
     },
     fonts: {
         families: [
-            { name: "Rubik", provider: "google", global: true, weights: [400, 500, 600, 700] }
+            {name: "Rubik", provider: "google", global: true, weights: [400, 500, 600, 700]}
         ],
         experimental: {
             disableLocalFallbacks: true
