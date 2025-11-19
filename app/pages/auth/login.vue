@@ -56,7 +56,7 @@ const handleLogin = async (event) => {
 
       <div class="pb-8 pt-4">
         <u-button
-            class="w-full" @click="loginWithProvider('google')" icon="material-icon-theme:google" block color="neutral" size="xl" variant="outline">Login With Google
+            class="w-full" icon="material-icon-theme:google" color="neutral" block size="xl" variant="outline" @click="loginWithProvider('google')">Login With Google
         </u-button>
       </div>
 

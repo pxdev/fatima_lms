@@ -36,18 +36,9 @@ export default defineNuxtConfig({
     runtimeConfig: {
         public: {
             directus: {
-                url: ""
+                url: "",
             }
         },
-        oauth: {
-            google: {
-                clientId: '',
-                clientSecret: '',
-            }
-        },
-        secure: {
-            salt: ""
-        }
     },
     css: ['~/assets/css/main.css'],
     icon: {
