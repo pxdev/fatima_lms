@@ -27,10 +27,17 @@ const {data: courses} = await useAsyncData("courses", () => getItems({
 }))
 
 
+const {data: subscription_sessions} = await useAsyncData("subscription_sessions", () => getItems({
+  collection: 'subscription_sessions',
+}))
+
+
 </script>
 
 <template>
   <main class="h-full">
+
+
     <main-banner/>
     <pricing-table :data="plans" :courses="courses"/>
     <portfolio :data="certificates"/>
