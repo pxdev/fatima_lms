@@ -1,25 +1,12 @@
 <script setup>
 const {getItems} = useDirectusItems();
 
-const certificates = [
-  {
-    "title": "Excellence in Healthcare Award",
-    "source": "Stanford University",
-    "year": "2022",
-    "image": "/images/banners/testimonial-bg-01.jpg",
-    "link": "/"
-  },
-  {
-    "title": "Patient Care Excellence Award",
-    "source": "Mayo Clinic",
-    "year": "2012",
-    "image": "/images/banners/testimonial-bg-01.jpg",
-    "link": "/"
-  }
-]
-
 const {data: plans} = await useAsyncData("plans", () => getItems({
   collection: 'plans',
+}))
+
+const {data: certificates} = await useAsyncData("portfolio", () => getItems({
+  collection: 'portfolio',
 }))
 
 const {data: courses} = await useAsyncData("courses", () => getItems({
@@ -37,6 +24,7 @@ const {data: subscription_sessions} = await useAsyncData("subscription_sessions"
 <template>
   <main class="h-full">
 
+    <debug>{{certificates}}</debug>
 
     <main-banner/>
     <pricing-table :data="plans" :courses="courses"/>

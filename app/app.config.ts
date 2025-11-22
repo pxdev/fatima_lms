@@ -107,17 +107,6 @@ export default defineAppConfig({
             },
         },
 
-        table: {
-            slots: {
-                root: 'bg-white',
-                thead: 'relative bg-gray-100',
-                tbody: 'divide-y divide-default',
-                tr: 'hover:bg-gray-50/50',
-                th: 'p-6 font-normal text-gray-500',
-                td: 'p-6',
-            },
-        }
-
 
     },
 });

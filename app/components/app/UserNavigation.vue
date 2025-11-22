@@ -35,7 +35,7 @@ const accountNavigation = [
 </script>
 
 <template>
-  <div class="min-w-64">
+  <div class="lg:col-span-3">
     <u-card>
       <ul class="space-y-2">
         <li v-for="nav in accountNavigation" :key="nav.id">

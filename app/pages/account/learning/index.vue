@@ -1,4 +1,6 @@
 <script setup>
+import { useDateFormat } from '@vueuse/core'
+const { getThumbnail: img } = useDirectusFiles();
 definePageMeta({middleware: ["auth"]})
 
 const {getItems} = useDirectusItems();
@@ -18,7 +20,7 @@ const items = [
 const {data: subscriptions} = await useAsyncData("subscriptions", () => getItems({
   collection: 'subscriptions',
   params: {
-    fields: ['*', 'course.*', 'plan.*']
+    fields: ['*', 'course.label', 'course.image', 'plan.*']
   }
 }))
 
@@ -32,14 +34,34 @@ const columns = [
     header: 'Date',
   },
   {
-    accessorKey: 'duration',
-    header: 'Duration',
+    accessorKey: 'status',
+    header: 'Status',
+    cell: ({ row }) => {
+    const color = {
+        running: 'success',
+      pending: 'warning',
+      error: 'error',
+        expired: 'neutral'
+      }[row.getValue('status')]
+
+      return h(UBadge, { class: 'capitalize', variant: 'subtle', color }, () =>
+          row.getValue('status')
+      )
+    }
+  },
+  {
+    accessorKey: 'actions',
+    header: 'Actions',
   }
-];
+]
+
 </script>
 
 <template>
   <section>
+
+    <debug>{{subscriptions}}</debug>
+
     <div class="pages py-10 border-b border-gray-200 bg-white mb-6">
       <u-container>
         <u-breadcrumb class="mb-4" :items="items"/>
@@ -48,28 +70,40 @@ const columns = [
     </div>
 
     <u-container>
-      <div class="flex gap-6">
+      <div class="grid lg:grid-cols-12 gap-6">
 
         <user-navigation/>
 
-
-        <div class="flex-1 space-y-6">
+        <div class="flex-1 lg:col-span-9 space-y-6">
 
           <u-card>
-            <u-table :data="subscriptions" :columns="columns">
+            <u-table  :data="subscriptions" :columns="columns">
               <template #title-cell="{ row }">
-                <p>{{ row.original.course.label }}</p>
+                <div class="flex items-center gap-4">
+                <img :src="img(row.original.course.image)" CLASS="w-30" />
+                <div class="">
+                <p class="font-bold">{{ row.original.course.label }}</p>
+                <u-popover mode="hover">
+                  <p>Plan: <span class="text-primary-500">{{row.original.plan.label}}</span></p>
+                  <template #content>
+                    <ul class="p-4 text-xs">
+                      <li v-for="(feature, idx ) in row.original.plan.features" :key="idx">{{feature}}</li>
+                    </ul>
+                  </template>
+                </u-popover>
+                </div>
+                </div>
               </template>
               <template #date-cell="{ row }">
-                {{ row.original.start }} - {{ row.original.end }}
-              </template>
-              <template #duration-cell="{ row }">
-                {{ row.original.plan.session_duration }} / min
+                <p class="text-xs">Start: {{ useDateFormat(row.original.start, 'DD MMMM YYYY') }}</p>
+                <p class="text-xs">End: {{ useDateFormat(row.original.end, 'DD MMMM YYYY') }}</p>
+               </template>
+              <template #actions-cell="{ row }">
+                <u-button color="primary" size="sm" :to="`/account/learning/${row.original.id}`">View</u-button>
               </template>
             </u-table>
-          </u-card>
-          <debug>{{ subscriptions }}</debug>
 
+          </u-card>
         </div>
 
       </div>

@@ -3,7 +3,7 @@ import {APP_INFO} from "./shared/utils/site";
 
 export default defineNuxtConfig({
     compatibilityDate: '2025-07-15',
-    devtools: {enabled: true},
+    devtools: {enabled: false},
     components: [
         {
             path: '~/components',
@@ -37,6 +37,8 @@ export default defineNuxtConfig({
         public: {
             directus: {
                 url: "",
+                autoFetch: true,
+                autoRefresh: true
             }
         },
     },

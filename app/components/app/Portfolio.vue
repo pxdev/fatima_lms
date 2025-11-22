@@ -1,6 +1,7 @@
 <script setup lang="ts">
   const { isRTL } = useDirection();
   const { createAnimationClipReveal, createFadeInWithTransform } = useAnimation();
+  const { getThumbnail: img } = useDirectusFiles();
 
   interface PortfolioItem {
     title: string;
@@ -55,7 +56,7 @@
             <div
               class="img-container shrink-0 object-cover overflow-hidden transition-all duration-700 ease-in-out rounded h-16 md:h-24 w-16 md:w-0 md:-translate-x-1/2 md:group-hover:translate-x-0 md:group-hover:w-28 relative"
             >
-              <nuxt-img :alt="item.title" :src="item.image" class="w-full h-full object-cover" />
+              <nuxt-img :alt="item.title" :src="img(item.image)" class="w-full h-full object-cover" />
             </div>
             <h3 class="text-lg md:text-xl lg:text-2xl font-bold flex-1 shrink-0">{{ item.title }}</h3>
           </div>
