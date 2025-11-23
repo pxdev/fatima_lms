@@ -60,8 +60,6 @@ const columns = [
 <template>
   <section>
 
-    <debug>{{subscriptions}}</debug>
-
     <div class="pages py-10 border-b border-gray-200 bg-white mb-6">
       <u-container>
         <u-breadcrumb class="mb-4" :items="items"/>

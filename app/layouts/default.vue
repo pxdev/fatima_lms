@@ -15,7 +15,7 @@ useHead({
 </script>
 
 <template>
-  <Html class="h-full text-lg font-rubik">
+  <Html class="h-full  text-lg font-rubik">
   <layout-header/>
   <div class="pb-6">
      <slot/>

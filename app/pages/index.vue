@@ -24,8 +24,6 @@ const {data: subscription_sessions} = await useAsyncData("subscription_sessions"
 <template>
   <main class="h-full">
 
-    <debug>{{certificates}}</debug>
-
     <main-banner/>
     <pricing-table :data="plans" :courses="courses"/>
     <portfolio :data="certificates"/>

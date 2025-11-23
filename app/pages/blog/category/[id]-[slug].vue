@@ -1,25 +1,38 @@
 <script setup>
 import {useDateFormat} from "@vueuse/core";
+import BlogCategories from "~/components/app/BlogCategories.vue";
 import PagesHeader from "~/components/app/PagesHeader.vue";
 
 const {getThumbnail: img} = useDirectusFiles();
 const {getItems} = useDirectusItems();
 
+const route = useRoute();
+const categoryId = route.params.id;
+const slug = route.params.slug;
+
 const crumbs = [
   {label: 'Home', to: '/'},
-  {label: 'Blog'}
+  {label: 'Blog', to: '/blog'},
+  {label: slug}
 ];
 
 const page = ref(1);
 
-const {data: articles} = await useAsyncData("articles", () => getItems({
+const {data: articles} = await useAsyncData(`articles-${categoryId}`, () => getItems({
       collection: 'articles',
       params: {
-        fields: ['*', 'user_created.first_name', 'category.title'],
+        fields: ['*', 'user_created.first_name', 'category.*'],
         sort: ['-date_created'],
         limit: 10,
         page: page.value,
-        meta: '*'
+        meta: '*',
+        filter: {
+          category: {
+            id: {
+              _eq: categoryId
+            }
+          }
+        }
       }
     }),
     {watch: [page]}
@@ -68,6 +81,7 @@ const truncate = (str, n) => {
     </u-container>
 
   </section>
+
 
 </template>
 
