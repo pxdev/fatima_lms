@@ -1,16 +1,14 @@
 <script setup>
-import {useDateFormat} from "@vueuse/core";
 
 definePageMeta({middleware: ["auth"]})
 const items = [
   {
     label: 'Home',
-    to: '/'
+    to: '/account'
   },
   {
-    label: 'Dashboard',
-    to: '/account'
-  }
+    label: 'My Profile',
+   }
 ]
 </script>
 
@@ -20,7 +18,7 @@ const items = [
     <div class="pages py-10 border-b border-gray-200 bg-white mb-6">
       <u-container>
         <u-breadcrumb class="mb-4" :items="items"/>
-        <base-heading is="h1">Dashboard</base-heading>
+        <base-heading is="h1">My Profile</base-heading>
       </u-container>
     </div>
 

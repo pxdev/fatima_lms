@@ -9,7 +9,7 @@ const accountNavigation = [
   {
     id: 'profile',
     label: "My Profile",
-    to: "/",
+    to: "/account/profile",
     ico: "hugeicons:user-02"
   },
   {
@@ -21,13 +21,13 @@ const accountNavigation = [
   {
     id: 'billing',
     label: "Billing",
-    to: "/",
+    to: "/account/billing",
     ico: "hugeicons:credit-card"
   },
   {
     id: 'affiliate',
     label: "Affiliate Program",
-    to: "/",
+    to: "/account/affiliate",
     ico: "hugeicons:user-group"
   }
 ]
