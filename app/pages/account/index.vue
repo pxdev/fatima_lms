@@ -1,5 +1,4 @@
 <script setup>
-import {useDateFormat} from "@vueuse/core";
 
 definePageMeta({middleware: ["auth"]})
 const items = [
@@ -12,6 +11,8 @@ const items = [
     to: '/account'
   }
 ]
+
+
 </script>
 
 <template>
@@ -32,8 +33,7 @@ const items = [
         <div class="flex-1 lg:col-span-9 space-y-6">
 
           <u-card>
-
-          </u-card>
+           </u-card>
         </div>
 
       </div>
