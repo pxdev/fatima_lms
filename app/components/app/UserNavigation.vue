@@ -8,7 +8,7 @@ const accountNavigation = [
   },
   {
     id: 'profile',
-    label: "My Profile",
+    label: "Student Profile",
     to: "/account/profile",
     ico: "hugeicons:user-02"
   },

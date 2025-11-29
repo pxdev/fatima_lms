@@ -26,7 +26,6 @@ const baseItems = [
     color: 'danger',
     onClick: async () => {
       await logout();
-      navigateTo('/');
     }
   }
 ]

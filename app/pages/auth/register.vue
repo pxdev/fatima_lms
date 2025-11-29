@@ -1,6 +1,6 @@
 <script setup>
 import { z } from 'zod'
-const { createUser } = useDirectusAuth();
+const { createUser, login } = useDirectusAuth();
 // ===============================
 // Validation Schema
 // ===============================
@@ -31,12 +31,16 @@ const handleRegister = async (event) => {
   isLoading.value = true
 
   const formData = event?.data ?? state
-  const { first_name, last_name , email, password } = formData
+  const { email, password } = formData
 
   try {
     await createUser( { email, password })
-
-    await navigateTo('/auth/login', { replace: true })
+    
+    // Auto-login after registration
+    await login({ email, password })
+    
+    // Redirect to profile setup
+    await navigateTo('/account/profile', { replace: true })
   } catch (err) {
     errorMessage.value = err?.data?.message || err?.message || 'Registration failed. Please try again.'
   } finally {

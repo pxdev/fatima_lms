@@ -1,6 +1,19 @@
-# Nuxt Minimal Starter
+# Fatima LMS
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+A Learning Management System built with Nuxt 3 and Directus.
+
+## Environment Variables
+
+Create a `.env` file in the root directory with the following variables:
+
+```env
+# Directus Configuration
+NUXT_PUBLIC_DIRECTUS_URL=your_directus_url_here
+
+# Directus Admin Token (for user registration)
+# Generate this token from your Directus admin panel
+DIRECTUS_ADMIN_TOKEN=your_admin_token_here
+```
 
 ## Setup
 

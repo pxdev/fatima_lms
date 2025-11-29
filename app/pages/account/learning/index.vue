@@ -1,9 +1,11 @@
 <script setup>
 import { useDateFormat } from '@vueuse/core'
-const { getThumbnail: img } = useDirectusFiles();
+ const { getThumbnail: img } = useDirectusFiles();
 definePageMeta({middleware: ["auth"]})
 
 const {getItems} = useDirectusItems();
+const user = useDirectusUser();
+const currentUserId = computed(() => user.value?.id);
 
 const items = [
   {
@@ -20,7 +22,13 @@ const items = [
 const {data: subscriptions} = await useAsyncData("subscriptions", () => getItems({
   collection: 'subscriptions',
   params: {
-    fields: ['*', 'course.label', 'course.image', 'plan.*']
+    fields: ['*', 'course.label', 'course.image', 'plan.*'],
+    sort: ['-status'],
+    filter: {
+      student: {
+        _eq: currentUserId.value
+      }
+    },
   }
 }))
 
@@ -78,10 +86,10 @@ const columns = [
             <u-table  :data="subscriptions" :columns="columns">
               <template #title-cell="{ row }">
                 <div class="flex items-center gap-4">
-                <img :src="img(row.original.course.image)" CLASS="w-30" />
+                <img v-if="row.original.course?.image" :src="img(row.original.course.image)" CLASS="w-30" />
                 <div class="">
-                <p class="font-bold">{{ row.original.course.label }}</p>
-                <u-popover mode="hover">
+                <p class="font-bold">{{ row.original.course?.label || 'N/A' }}</p>
+                <u-popover v-if="row.original.plan" mode="hover">
                   <p>Plan: <span class="text-primary-500">{{row.original.plan.label}}</span></p>
                   <template #content>
                     <ul class="p-4 text-xs">
