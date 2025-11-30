@@ -1,7 +1,8 @@
 <template>
   <footer
-    class="w-full text-sm text-white bg-white"
+    class="w-full relative text-sm text-white bg-white"
   >
+    <wave-top/>
 
 
       <u-container class="relative z-10 hidden">
@@ -140,3 +141,6 @@
     z-index: -1;
   }
 </style>
+<script setup lang="ts">
+import WaveTop from "~/components/app/WaveTop.vue";
+</script>

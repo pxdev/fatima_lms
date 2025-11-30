@@ -49,7 +49,7 @@ const formattedDate = computed(() => {
 </script>
 
 <template>
-  <div v-if="course" class="bg-gray-50 dark:bg-gray-950">
+  <div v-if="course" class="">
     <pages-header :title="course.label" :crumbs="crumbs" />
 
     <u-container class="py-12">

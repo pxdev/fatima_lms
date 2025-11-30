@@ -1,4 +1,6 @@
 <script setup>
+import WaveTop from "~/components/app/WaveTop.vue";
+
 const {createFadeInWithTransform} = useAnimation();
 
 const props = defineProps({
@@ -11,7 +13,10 @@ const selectedCourse = ref(null);
 </script>
 
 <template>
-  <section ref="mainPricingContainer" class="block relative py-12 md:py-24 bg-white dark:bg-neutral-900">
+  <section ref="mainPricingContainer" class="block relative py-12 md:py-24 bg-gradient-to-r from-primary/10  to-secondary/10">
+
+    <wave-top/>
+
     <u-container>
       <div class="flex justify-center max-w-2xl mx-auto text-center px-4 md:px-0">
         <div v-motion="createFadeInWithTransform('up', { delay: 0, duration: 1000 })">

@@ -78,7 +78,7 @@ const {data: navLinks} = await useAsyncData("navigation", () => getItems({
       </div>
     </template>
   </u-slideover>
-  <header class="sticky top-0 z-50 shadow shadow-black/5 bg-white">
+  <header class="sticky top-0 z-50  bg-white">
     <u-container>
       <div class="flex justify-between items-center py-4">
         <!-- Logo -->
