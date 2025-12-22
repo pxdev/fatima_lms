@@ -4,11 +4,12 @@ definePageMeta({
 })
 
 useSeoMeta({
-  title: 'Sign In',
-  description: 'Sign in to your account to continue learning'
+  title: 'Reset Password',
+  description: 'Set a new password for your account'
 })
 </script>
 
 <template>
-  <AuthFormLogin />
+  <AuthFormReset />
 </template>
+

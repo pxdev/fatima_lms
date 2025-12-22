@@ -35,12 +35,24 @@ export default defineNuxtConfig({
         'nuxt-directus'
     ],
     runtimeConfig: {
+        // Server-only (private) config
+        directusAdminToken: '', // Set via NUXT_DIRECTUS_ADMIN_TOKEN env var
+        // Zoom API credentials (Server-to-Server OAuth)
+        zoomAccountId: '', // Set via NUXT_ZOOM_ACCOUNT_ID
+        zoomClientId: '', // Set via NUXT_ZOOM_CLIENT_ID
+        zoomClientSecret: '', // Set via NUXT_ZOOM_CLIENT_SECRET
+        zoomUserId: '', // Set via NUXT_ZOOM_USER_ID (optional, defaults to 'me')
+        // Lemon Squeezy webhook secret
+        lemonWebhookSecret: '', // Set via NUXT_LEMON_WEBHOOK_SECRET
+        // Public config (exposed to client)
         public: {
             directus: {
-                url: "",
+                url: '',
                 autoFetch: true,
-                autoRefresh: true
-            }
+                autoRefresh: true,
+      
+            },
+             lemonStoreUrl: '',
         },
     },
     css: ['~/assets/css/main.css'],

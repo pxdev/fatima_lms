@@ -11,7 +11,7 @@ const props = defineProps({
 const variants = {
   active: {
     label: "Active",
-    color: "emerald",
+    color: "primary",
   },
   completed: {
     label: "Completed",

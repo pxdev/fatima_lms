@@ -1,404 +1,268 @@
-<script setup>
-definePageMeta({middleware: ["auth"]})
+<script setup lang="ts">
+import { z } from 'zod'
 
-const items = [
-  {
-    label: 'Home',
-    to: '/account'
-  },
-  {
-    label: 'Student Profile',
-  }
+definePageMeta({
+  middleware: 'auth',
+  layout: 'dashboard'
+})
+
+useSeoMeta({
+  title: 'Edit Profile',
+  description: 'Update your profile information'
+})
+
+// ===============================
+// Composables
+// ===============================
+const { profile, isLoading, error, isTeacher, fetchProfile, updateProfile } = useProfile()
+
+// ===============================
+// Timezones list
+// ===============================
+const timezones = [
+  { value: 'Asia/Riyadh', label: 'Asia/Riyadh (GMT+3)' },
+  { value: 'Asia/Dubai', label: 'Asia/Dubai (GMT+4)' },
+  { value: 'Asia/Kuwait', label: 'Asia/Kuwait (GMT+3)' },
+  { value: 'Asia/Qatar', label: 'Asia/Qatar (GMT+3)' },
+  { value: 'Asia/Bahrain', label: 'Asia/Bahrain (GMT+3)' },
+  { value: 'Africa/Cairo', label: 'Africa/Cairo (GMT+2)' },
+  { value: 'Europe/London', label: 'Europe/London (GMT+0)' },
+  { value: 'Europe/Paris', label: 'Europe/Paris (GMT+1)' },
+  { value: 'America/New_York', label: 'America/New_York (GMT-5)' },
+  { value: 'America/Los_Angeles', label: 'America/Los_Angeles (GMT-8)' },
+  { value: 'Asia/Karachi', label: 'Asia/Karachi (GMT+5)' },
+  { value: 'Asia/Kolkata', label: 'Asia/Kolkata (GMT+5:30)' },
+  { value: 'Asia/Jakarta', label: 'Asia/Jakarta (GMT+7)' },
+  { value: 'Asia/Kuala_Lumpur', label: 'Asia/Kuala_Lumpur (GMT+8)' },
 ]
 
-const user = useDirectusUser();
-const currentUserId = computed(() => user.value?.id);
-
-const { getItems, createItems, updateItem } = useDirectusItems();
-
 // ===============================
-// Check if student profile exists
+// Validation Schema
 // ===============================
-const studentProfile = ref(null);
-const isFirstTime = ref(false);
-const isLoading = ref(true);
+const schema = z.object({
+  display_name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  phone: z.string().optional().nullable(),
+  timezone: z.string().min(1, 'Please select a timezone'),
+  bio: z.string().optional().nullable(),
+  languages: z.string().optional().nullable()
+})
 
-onMounted(async () => {
-  try {
-    const students = await getItems({
-      collection: 'students',
-      params: {
-        filter: {
-          user_id: {
-            _eq: currentUserId.value
-          }
-        }
-      }
-    });
-
-    if (students && students.length > 0) {
-      studentProfile.value = students[0];
-      isFirstTime.value = false;
-    } else {
-      isFirstTime.value = true;
-    }
-  } catch (err) {
-    console.error('Error fetching student profile:', err);
-  } finally {
-    isLoading.value = false;
-  }
-});
-
-// ===============================
-// Dropdown Options
-// ===============================
-const statusOptions = [
-  { label: 'Active', value: 'active' },
-  { label: 'Inactive', value: 'inactive' },
-  { label: 'Suspended', value: 'suspended' }
-];
-
-const timezoneOptions = [
-  { label: 'UTC', value: 'UTC' },
-  { label: 'America/New_York (EST)', value: 'America/New_York' },
-  { label: 'America/Chicago (CST)', value: 'America/Chicago' },
-  { label: 'America/Los_Angeles (PST)', value: 'America/Los_Angeles' },
-  { label: 'Europe/London (GMT)', value: 'Europe/London' },
-  { label: 'Europe/Paris (CET)', value: 'Europe/Paris' },
-  { label: 'Asia/Dubai (GST)', value: 'Asia/Dubai' },
-  { label: 'Asia/Riyadh (AST)', value: 'Asia/Riyadh' },
-  { label: 'Asia/Cairo (EET)', value: 'Asia/Cairo' },
-  { label: 'Asia/Tokyo (JST)', value: 'Asia/Tokyo' }
-];
-
-const genderOptions = [
-  { label: 'Male', value: 'male' },
-  { label: 'Female', value: 'female' },
-];
-
-const arabicLevelOptions = [
-  { label: 'Beginner', value: 'beginner' },
-  { label: 'Elementary', value: 'elementary' },
-  { label: 'Intermediate', value: 'intermediate' },
-  { label: 'Advanced', value: 'advanced' },
-  { label: 'Native', value: 'native' }
-];
+type ProfileForm = z.infer<typeof schema>
 
 // ===============================
 // Reactive State
 // ===============================
-const state = reactive({
-  status: studentProfile.value?.status || 'active',
-  sort: studentProfile.value?.sort || '',
-  timezone: studentProfile.value?.timezone || 'UTC',
-  gender: studentProfile.value?.gender || '',
-  age: studentProfile.value?.age || '',
-  country: studentProfile.value?.country || '',
-  refered_by: studentProfile.value?.refered_by || '',
-  bio: studentProfile.value?.bio || '',
-  notes: studentProfile.value?.notes || '',
-  phone: studentProfile.value?.phone || '',
-  arabic_level: studentProfile.value?.arabic_level || '',
-});
+const state = reactive<ProfileForm>({
+  display_name: '',
+  phone: '',
+  timezone: 'Asia/Riyadh',
+  bio: '',
+  languages: ''
+})
 
-// Watch studentProfile changes and update state
-watch(studentProfile, (newProfile) => {
-  if (newProfile) {
-    state.status = newProfile.status || 'active';
-    state.sort = newProfile.sort || '';
-    state.timezone = newProfile.timezone || 'UTC';
-    state.gender = newProfile.gender || '';
-    state.age = newProfile.age || '';
-    state.country = newProfile.country || '';
-    state.refered_by = newProfile.refered_by || '';
-    state.bio = newProfile.bio || '';
-    state.notes = newProfile.notes || '';
-    state.phone = newProfile.phone || '';
-    state.arabic_level = newProfile.arabic_level || '';
+const successMessage = ref('')
+const formError = ref('')
+const isSaving = ref(false)
+
+// ===============================
+// Fetch profile on mount
+// ===============================
+onMounted(async () => {
+  await fetchProfile()
+  
+  if (profile.value) {
+    state.display_name = profile.value.display_name || ''
+    state.phone = profile.value.phone || ''
+    state.timezone = profile.value.timezone || 'Asia/Riyadh'
+    state.bio = profile.value.bio || ''
+    state.languages = profile.value.languages || ''
   }
-});
-
-const errorMessage = ref('');
-const successMessage = ref('');
-const isSaving = ref(false);
+})
 
 // ===============================
 // Form Submission
 // ===============================
-const handleSubmit = async (event) => {
-  errorMessage.value = '';
-  successMessage.value = '';
-  isSaving.value = true;
-
-  const formData = event?.data ?? state;
+async function handleSubmit(event: { data: ProfileForm }) {
+  successMessage.value = ''
+  formError.value = ''
+  isSaving.value = true
 
   try {
-    if (isFirstTime.value) {
-      // Create new student profile
-      const newStudent = await createItems({
-        collection: 'students',
-        items: [{
-          user_id: currentUserId.value,
-          // status: formData.status,
-          // sort: formData.sort,
-          // timezone: formData.timezone,
-          // gender: formData.gender,
-          // age: formData.age,
-          // country: formData.country,
-          // refered_by: formData.refered_by,
-          // bio: formData.bio,
-          // notes: formData.notes,
-          // phone: formData.phone,
-          // arabic_level: formData.arabic_level,
-        }]
-      });
+    const { display_name, phone, timezone, bio, languages } = event.data
 
-      studentProfile.value = newStudent[0];
-      isFirstTime.value = false;
-      successMessage.value = 'Student profile created successfully!';
-    } else {
-      // Update existing student profile
-      await updateItem({
-        collection: 'students',
-        id: studentProfile.value.id,
-        item: {
-          status: formData.status,
-          sort: formData.sort,
-          timezone: formData.timezone,
-          gender: formData.gender,
-          age: formData.age,
-          country: formData.country,
-          refered_by: formData.refered_by,
-          bio: formData.bio,
-          notes: formData.notes,
-          phone: formData.phone,
-          arabic_level: formData.arabic_level,
-        }
-      });
+    const updated = await updateProfile({
+      display_name,
+      phone: phone || null,
+      timezone,
+      bio: bio || null,
+      languages: languages?.trim() || null
+    })
 
-      successMessage.value = 'Student profile updated successfully!';
+    if (updated) {
+      successMessage.value = 'Profile updated successfully!'
     }
-
-    // Clear success message after 3 seconds
-    setTimeout(() => {
-      successMessage.value = '';
-    }, 3000);
-  } catch (err) {
-    errorMessage.value = err?.data?.message || err?.message || 'Failed to save profile. Please try again.';
+  } catch (err: any) {
+    console.error('Error saving profile:', err)
+    formError.value = err?.message || 'Failed to save profile'
   } finally {
-    isSaving.value = false;
+    isSaving.value = false
   }
 }
 </script>
 
 <template>
-  <section>
-
-    <div class="pages py-10 border-b border-gray-200 bg-white mb-6">
-      <u-container>
-        <u-breadcrumb class="mb-4" :items="items"/>
-        <base-heading is="h1">{{ isFirstTime ? 'Complete Your Student Profile' : 'Student Profile' }}</base-heading>
-      </u-container>
+  <div>
+    <!-- Header -->
+    <div class="mb-8">
+      <h1 class="text-2xl font-bold text-slate-900">Edit Profile</h1>
+      <p class="mt-1 text-sm text-slate-500">Update your personal information</p>
     </div>
 
-    <u-container>
-      <div class="grid lg:grid-cols-12 gap-6">
-        <user-navigation/>
+    <!-- Loading State -->
+    <UCard v-if="isLoading" class="space-y-4">
+        <USkeleton class="h-10 w-full" />
+        <USkeleton class="h-10 w-full" />
+        <USkeleton class="h-10 w-full" />
+        <USkeleton class="h-10 w-1/3" />
+      </UCard>
 
-        <div class="flex-1 lg:col-span-9 space-y-6">
-          
-          <!-- Loading State -->
-          <u-card v-if="isLoading">
-            <div class="flex items-center justify-center py-12">
-              <u-icon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin text-primary-500"/>
-            </div>
-          </u-card>
+      <!-- Error State -->
+      <UAlert
+        v-else-if="error && !profile"
+        color="error"
+        variant="soft"
+        icon="i-heroicons-exclamation-triangle"
+        :title="error"
+        class="mb-6"
+      />
 
-          <!-- Student Profile Form -->
-          <u-card v-else>
-            <template #header>
-              <div class="space-y-1">
-                <h2 class="text-xl font-semibold">
-                  {{ isFirstTime ? 'Create Student Profile' : 'Edit Student Profile' }}
-                </h2>
-                <p class="text-sm text-gray-500">
-                  {{ isFirstTime ? 'Please complete your student profile to continue.' : 'Update your student information.' }}
-                </p>
-              </div>
+      <!-- Profile Form -->
+      <UCard v-else-if="profile">
+        <UForm
+          :state="state"
+          :schema="schema"
+          class="space-y-6"
+          @submit="handleSubmit"
+        >
+          <!-- Success Message -->
+          <UAlert
+            v-if="successMessage"
+            color="success"
+            variant="soft"
+            icon="i-heroicons-check-circle"
+            :title="successMessage"
+            :close-button="{ icon: 'i-heroicons-x-mark', color: 'success', variant: 'link' }"
+            @close="successMessage = ''"
+          />
+
+          <!-- Error Message -->
+          <UAlert
+            v-if="error || formError"
+            color="error"
+            variant="soft"
+            icon="i-heroicons-exclamation-triangle"
+            :title="error || formError"
+            :close-button="{ icon: 'i-heroicons-x-mark', color: 'error', variant: 'link' }"
+            @close="formError = ''"
+          />
+
+          <!-- Display Name -->
+          <UFormField label="Display Name" name="display_name" required>
+            <UInput
+              v-model="state.display_name"
+              size="lg"
+              placeholder="Your name"
+              :disabled="isSaving"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Phone -->
+          <UFormField label="Phone Number" name="phone">
+            <UInput
+              v-model="state.phone"
+              size="lg"
+              type="tel"
+              placeholder="+966 5XX XXX XXXX"
+              :disabled="isSaving"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Timezone -->
+          <UFormField label="Timezone" name="timezone" required>
+            <USelect
+              v-model="state.timezone"
+              :items="timezones"
+              value-key="value"
+              label-key="label"
+              size="lg"
+              placeholder="Select timezone"
+              :disabled="isSaving"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Languages -->
+          <UFormField label="Languages" name="languages">
+            <template #hint>
+              <span class="text-xs">Comma-separated (e.g., English, Arabic)</span>
             </template>
+            <UInput
+              v-model="state.languages"
+              size="lg"
+              placeholder="English, Arabic, French"
+              :disabled="isSaving"
+              class="w-full"
+            />
+          </UFormField>
 
-            <u-form
-              :state="state"
-              class="space-y-5"
-              @submit.prevent="handleSubmit"
+          <!-- Bio (Teachers only) -->
+          <UFormField v-if="isTeacher" label="Bio" name="bio">
+            <template #hint>
+              <span class="text-xs">Tell students about yourself</span>
+            </template>
+            <UTextarea
+              v-model="state.bio"
+              size="lg"
+              placeholder="Write a short bio about yourself, your experience, and teaching style..."
+              :rows="4"
+              :disabled="isSaving"
+              class="w-full"
+            />
+          </UFormField>
+
+          <!-- Role Badge (Read-only) -->
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-700">Role:</span>
+            <UBadge
+              :color="profile.role === 'admin' ? 'error' : profile.role === 'teacher' ? 'primary' : 'neutral'"
+              variant="soft"
             >
-              <u-alert
-                v-if="errorMessage"
-                color="error"
-                icon="i-heroicons-exclamation-triangle"
-                :title="errorMessage"
-                class="mb-4"
-              />
+              {{ profile.role }}
+            </UBadge>
+          </div>
 
-              <u-alert
-                v-if="successMessage"
-                color="success"
-                icon="i-heroicons-check-circle"
-                :title="successMessage"
-                class="mb-4"
-              />
-
-              <!-- Personal Information Section -->
-              <div class="space-y-4">
-                <h3 class="text-lg font-semibold text-gray-900">Personal Information</h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <u-form-field label="Gender" name="gender">
-                    <u-select
-                      v-model="state.gender"
-                      :items="genderOptions"
-                      class="w-full"
-                      size="xl"
-                      placeholder="Select gender"
-                    />
-                  </u-form-field>
-
-                  <u-form-field label="Age" name="age">
-                    <u-input
-                      v-model="state.age"
-                      class="w-full"
-                      size="xl"
-                      type="number"
-                      placeholder="Enter your age"
-                    />
-                  </u-form-field>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <u-form-field label="Country" name="country">
-                    <u-input
-                      v-model="state.country"
-                      class="w-full"
-                      size="xl"
-                      type="text"
-                      placeholder="Enter your country"
-                    />
-                  </u-form-field>
-
-                  <u-form-field label="Phone" name="phone">
-                    <u-input
-                      v-model="state.phone"
-                      class="w-full"
-                      size="xl"
-                      type="tel"
-                      placeholder="+1 (555) 123-4567"
-                    />
-                  </u-form-field>
-                </div>
-
-                <u-form-field label="Timezone" name="timezone">
-                  <u-select
-                    v-model="state.timezone"
-                    :items="timezoneOptions"
-                    class="w-full"
-                    size="xl"
-                    placeholder="Select timezone"
-                  />
-                </u-form-field>
-              </div>
-
-              <!-- Learning Information Section -->
-              <div class="space-y-4">
-                <h3 class="text-lg font-semibold text-gray-900">Learning Information</h3>
-                
-                <u-form-field label="Arabic Level" name="arabic_level">
-                  <u-select
-                    v-model="state.arabic_level"
-                    :items="arabicLevelOptions"
-                    class="w-full"
-                    size="xl"
-                    placeholder="Select your Arabic level"
-                  />
-                </u-form-field>
-
-                <u-form-field label="Bio" name="bio">
-                  <u-textarea
-                    v-model="state.bio"
-                    class="w-full"
-                    size="xl"
-                    :rows="4"
-                    placeholder="Tell us about yourself..."
-                  />
-                </u-form-field>
-              </div>
-
-              <!-- Additional Information Section -->
-              <div class="space-y-4">
-                <h3 class="text-lg font-semibold text-gray-900">Additional Information</h3>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  <u-form-field label="Status" name="status">
-                    <u-select
-                      v-model="state.status"
-                      :items="statusOptions"
-                      class="w-full"
-                      size="xl"
-                      placeholder="Select status"
-                    />
-                  </u-form-field>
-
-                  <u-form-field label="Sort Order" name="sort">
-                    <u-input
-                      v-model="state.sort"
-                      class="w-full"
-                      size="xl"
-                      type="number"
-                      placeholder="Enter sort order"
-                    />
-                  </u-form-field>
-                </div>
-
-                <u-form-field label="Referred By" name="refered_by">
-                  <u-input
-                    v-model="state.refered_by"
-                    class="w-full"
-                    size="xl"
-                    type="text"
-                    placeholder="Who referred you?"
-                  />
-                </u-form-field>
-
-                <u-form-field label="Notes" name="notes">
-                  <u-textarea
-                    v-model="state.notes"
-                    class="w-full"
-                    size="xl"
-                    :rows="4"
-                    placeholder="Additional notes..."
-                  />
-                </u-form-field>
-              </div>
-
-              <div class="flex justify-end pt-4">
-                <u-button
-                  size="xl"
-                  type="submit"
-                  color="primary"
-                  :loading="isSaving"
-                  :disabled="isSaving"
-                >
-                  {{ isFirstTime ? 'Create Profile' : 'Update Profile' }}
-                </u-button>
-              </div>
-            </u-form>
-          </u-card>
-        </div>
-      </div>
-    </u-container>
-  </section>
-
- </template>
-
-<style scoped>
-
-</style>
+          <!-- Submit Button -->
+          <div class="flex justify-end gap-3 pt-4">
+            <UButton
+              color="neutral"
+              variant="outline"
+              to="/account"
+              :disabled="isSaving"
+            >
+              Cancel
+            </UButton>
+            <UButton
+              type="submit"
+              color="primary"
+              :loading="isSaving"
+              :disabled="isSaving"
+            >
+              Save Changes
+            </UButton>
+          </div>
+        </UForm>
+      </UCard>
+  </div>
+</template>

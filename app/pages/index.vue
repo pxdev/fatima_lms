@@ -23,11 +23,8 @@ const {data: subscription_sessions} = await useAsyncData("subscription_sessions"
 
 <template>
   <main class="h-full">
-
     <main-banner/>
-    
     <free-trial-section/>
-    
     <pricing-table :data="plans" :courses="courses"/>
     <portfolio :data="certificates"/>
   </main>

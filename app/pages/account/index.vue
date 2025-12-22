@@ -1,6 +1,9 @@
 <script setup>
 
-definePageMeta({middleware: ["auth"]})
+definePageMeta({
+  middleware: 'auth',
+  layout: 'dashboard'
+})
 const items = [
   {
     label: 'Home',
