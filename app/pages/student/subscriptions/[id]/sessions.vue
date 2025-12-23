@@ -28,9 +28,23 @@ const { profile, fetchProfile } = useProfile()
 const showPostponeModal = ref(false)
 const selectedSession = ref<any>(null)
 const postponeReason = ref('')
-const isRequesting = ref(false)
+
+// Throttled postpone action
+const { execute: throttledPostpone, isLoading: isRequesting } = useThrottledAction(
+  async () => {
+    await doPostpone()
+  },
+  { throttleMs: 1000 }
+)
 
 onMounted(async () => {
+  // Sync session statuses first (auto-complete expired sessions)
+  try {
+    await $fetch('/api/sessions/sync-status', { method: 'POST' })
+  } catch (err) {
+    console.warn('Failed to sync session statuses:', err)
+  }
+  
   await Promise.all([
     fetchProfile(),
     fetchSessions(subscriptionId.value)
@@ -43,17 +57,20 @@ function openPostponeModal(session: any) {
   showPostponeModal.value = true
 }
 
-async function handlePostpone() {
+async function doPostpone() {
   if (!selectedSession.value || !postponeReason.value.trim()) return
 
-  isRequesting.value = true
   try {
     await requestPostpone(selectedSession.value.id, postponeReason.value)
     showPostponeModal.value = false
     await fetchSessions(subscriptionId.value)
-  } finally {
-    isRequesting.value = false
+  } catch (err) {
+    console.error('Failed to request postpone:', err)
   }
+}
+
+function handlePostpone() {
+  throttledPostpone()
 }
 
 function getUpcomingSessions() {
@@ -69,7 +86,35 @@ function getPastSessions() {
   return sessions.value.filter(s => 
     new Date(s.start_at) <= now || 
     !['scheduled', 'in_progress'].includes(s.status)
-  )
+  ).sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime()) // Most recent first
+}
+
+function isSessionMissed(session: any): boolean {
+  const now = new Date()
+  return new Date(session.start_at) <= now && session.status === 'scheduled'
+}
+
+function getSessionIcon(session: any): string {
+  if (session.status === 'completed') return 'i-heroicons-check-circle'
+  if (session.status === 'cancelled') return 'i-heroicons-x-circle'
+  if (isSessionMissed(session)) return 'i-heroicons-clock'
+  if (session.status.includes('no_show')) return 'i-heroicons-exclamation-circle'
+  if (session.status.includes('postpone')) return 'i-heroicons-arrow-path'
+  return 'i-heroicons-video-camera'
+}
+
+function getSessionIconColor(session: any): string {
+  if (session.status === 'completed') return 'bg-green-100 text-green-600'
+  if (session.status === 'cancelled') return 'bg-red-100 text-red-500'
+  if (isSessionMissed(session)) return 'bg-amber-100 text-amber-600'
+  if (session.status.includes('no_show')) return 'bg-red-100 text-red-500'
+  if (session.status.includes('postpone')) return 'bg-amber-100 text-amber-600'
+  return 'bg-slate-100 text-slate-400'
+}
+
+function getDisplayStatus(session: any): string {
+  if (isSessionMissed(session)) return 'missed'
+  return session.status
 }
 </script>
 
@@ -182,34 +227,54 @@ function getPastSessions() {
             <UCard
               v-for="session in getPastSessions()"
               :key="session.id"
-              class="opacity-75"
+              :class="{ 'opacity-60': session.status === 'cancelled' }"
             >
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-4">
-                  <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100">
-                    <UIcon name="i-heroicons-check-circle" class="h-7 w-7 text-slate-400" />
+                  <div 
+                    class="flex h-14 w-14 items-center justify-center rounded-xl"
+                    :class="getSessionIconColor(session)"
+                  >
+                    <UIcon :name="getSessionIcon(session)" class="h-7 w-7" />
                   </div>
                   <div>
                     <p class="font-semibold text-slate-700">
                       {{ formatSessionTime(session) }}
                     </p>
                     <div class="mt-1 flex items-center gap-2">
-                      <UBadge :color="getStatusColor(session.status)" variant="soft" size="sm">
-                        {{ session.status.replace(/_/g, ' ') }}
+                      <UBadge 
+                        :color="isSessionMissed(session) ? 'warning' : getStatusColor(session.status)" 
+                        variant="soft" 
+                        size="sm"
+                      >
+                        {{ getDisplayStatus(session).replace(/_/g, ' ') }}
                       </UBadge>
+                      <span v-if="isSessionMissed(session)" class="text-xs text-amber-600">
+                        Session time passed
+                      </span>
                     </div>
                   </div>
                 </div>
 
-                <UButton
-                  v-if="session.status === 'completed'"
-                  variant="ghost"
-                  color="neutral"
-                  size="sm"
-                  :to="`/student/sessions/${session.id}/rate`"
-                >
-                  Rate Session
-                </UButton>
+                <div class="flex items-center gap-2">
+                  <UButton
+                    v-if="session.status === 'completed'"
+                    variant="outline"
+                    color="primary"
+                    size="sm"
+                    :to="`/student/sessions/${session.id}/rate`"
+                  >
+                    <UIcon name="i-heroicons-star" class="mr-1 h-4 w-4" />
+                    Rate Session
+                  </UButton>
+                  <UBadge 
+                    v-else-if="isSessionMissed(session)" 
+                    color="warning" 
+                    variant="soft"
+                  >
+                    Contact teacher
+                  </UBadge>
+                </div>
               </div>
             </UCard>
           </div>

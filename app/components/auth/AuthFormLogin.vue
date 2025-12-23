@@ -23,18 +23,29 @@ const state = reactive<LoginForm>({
 
 const errorMessage = ref('')
 const successMessage = ref('')
-const isLoading = ref(false)
-const isGoogleLoading = ref(false)
 
 // ===============================
-// Form Submission
+// Throttled Form Submission
 // ===============================
-async function handleLogin(event: { data: LoginForm }) {
+const { execute: throttledLogin, isLoading } = useThrottledAction(
+  async () => {
+    await doLogin()
+  },
+  { throttleMs: 1000 }
+)
+
+const { execute: throttledGoogleLogin, isLoading: isGoogleLoading } = useThrottledAction(
+  async () => {
+    await doGoogleLogin()
+  },
+  { throttleMs: 1000 }
+)
+
+async function doLogin() {
   errorMessage.value = ''
   successMessage.value = ''
-  isLoading.value = true
 
-  const { email, password } = event.data
+  const { email, password } = state
 
   try {
     await login({ email, password })
@@ -42,24 +53,28 @@ async function handleLogin(event: { data: LoginForm }) {
     await navigateTo('/student/dashboard', { replace: true })
   } catch (err: any) {
     errorMessage.value = err?.data?.message || err?.message || 'Login failed. Please check your credentials.'
-  } finally {
-    isLoading.value = false
   }
+}
+
+function handleLogin() {
+  throttledLogin()
 }
 
 // ===============================
 // OAuth Login
 // ===============================
-async function handleGoogleLogin() {
-  isGoogleLoading.value = true
+async function doGoogleLogin() {
   errorMessage.value = ''
   
   try {
     await loginWithProvider('google')
   } catch (err: any) {
     errorMessage.value = err?.data?.message || err?.message || 'Google login failed. Please try again.'
-    isGoogleLoading.value = false
   }
+}
+
+function handleGoogleLogin() {
+  throttledGoogleLogin()
 }
 </script>
 

@@ -48,7 +48,17 @@ const subscription = ref<SubDetail | null>(null)
 const weeks = ref<WeekDetail[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
-const isApproving = ref<Record<string, boolean>>({})
+const approvingWeekId = ref<string | null>(null)
+
+// Throttled approve action
+const { execute: throttledApprove, isLoading: isApproving } = useThrottledAction(
+  async () => {
+    if (approvingWeekId.value) {
+      await doApproveWeek(approvingWeekId.value)
+    }
+  },
+  { throttleMs: 1000 }
+)
 
 onMounted(async () => {
   await fetchProfile()
@@ -111,8 +121,7 @@ async function loadData() {
   }
 }
 
-async function approveWeek(weekId: string) {
-  isApproving.value[weekId] = true
+async function doApproveWeek(weekId: string) {
   error.value = null
 
   try {
@@ -125,8 +134,13 @@ async function approveWeek(weekId: string) {
   } catch (err: any) {
     error.value = err?.data?.statusMessage || 'Failed to approve week'
   } finally {
-    isApproving.value[weekId] = false
+    approvingWeekId.value = null
   }
+}
+
+function approveWeek(weekId: string) {
+  approvingWeekId.value = weekId
+  throttledApprove()
 }
 
 function formatSlotTime(slot: any): string {
@@ -254,7 +268,8 @@ function getWeekStatusColor(status: string): string {
                   v-if="week.status === 'submitted'"
                   color="success"
                   size="sm"
-                  :loading="isApproving[week.id]"
+                  :loading="isApproving && approvingWeekId === week.id"
+                  :disabled="isApproving"
                   @click="approveWeek(week.id)"
                 >
                   Approve Week

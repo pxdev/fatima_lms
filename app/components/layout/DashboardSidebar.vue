@@ -28,9 +28,14 @@ const studentItems: NavigationMenuItem[] = [
     to: '/student/dashboard'
   },
   {
+    label: 'My Sessions',
+    icon: 'i-heroicons-video-camera',
+    to: '/student/sessions'
+  },
+  {
     label: 'New Subscription',
     icon: 'i-heroicons-plus-circle',
-    to: '/student/onboarding/course'
+    to: '/student/subscribe'
   }
 ]
 

@@ -19,7 +19,6 @@ const { currentSession, fetchSession, formatSessionTime } = useSessions()
 const { createRating, hasRated, isLoading, error } = useRatings()
 
 const alreadyRated = ref(false)
-const isSaving = ref(false)
 const success = ref(false)
 
 const schema = z.object({
@@ -34,6 +33,14 @@ const state = reactive<RatingForm>({
   comment: ''
 })
 
+// Throttled submit
+const { execute: throttledSubmit, isLoading: isSaving } = useThrottledAction(
+  async () => {
+    await doSubmit()
+  },
+  { throttleMs: 2000 }
+)
+
 onMounted(async () => {
   await Promise.all([
     fetchProfile(),
@@ -45,10 +52,8 @@ onMounted(async () => {
   }
 })
 
-async function handleSubmit() {
+async function doSubmit() {
   if (!profile.value?.id || !currentSession.value) return
-
-  isSaving.value = true
 
   try {
     await createRating({
@@ -64,9 +69,13 @@ async function handleSubmit() {
     setTimeout(() => {
       navigateTo('/student/dashboard')
     }, 2000)
-  } finally {
-    isSaving.value = false
+  } catch (err) {
+    // Error handled by composable
   }
+}
+
+function handleSubmit() {
+  throttledSubmit()
 }
 </script>
 

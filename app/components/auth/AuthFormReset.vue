@@ -32,7 +32,6 @@ const state = reactive<ResetForm>({
 
 const errorMessage = ref('')
 const isSubmitted = ref(false)
-const isLoading = ref(false)
 const isTokenInvalid = ref(false)
 
 // ===============================
@@ -45,13 +44,19 @@ onMounted(() => {
 })
 
 // ===============================
-// Form Submission
+// Throttled Form Submission
 // ===============================
-async function handleResetPassword(event: { data: ResetForm }) {
-  errorMessage.value = ''
-  isLoading.value = true
+const { execute: throttledReset, isLoading } = useThrottledAction(
+  async () => {
+    await doResetPassword()
+  },
+  { throttleMs: 2000 }
+)
 
-  const { password } = event.data
+async function doResetPassword() {
+  errorMessage.value = ''
+
+  const { password } = state
 
   try {
     await resetPassword({
@@ -68,9 +73,11 @@ async function handleResetPassword(event: { data: ResetForm }) {
     } else {
       errorMessage.value = err?.data?.message || err?.message || 'Failed to reset password. Please try again.'
     }
-  } finally {
-    isLoading.value = false
   }
+}
+
+function handleResetPassword() {
+  throttledReset()
 }
 </script>
 

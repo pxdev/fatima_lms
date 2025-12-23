@@ -21,16 +21,21 @@ const state = reactive<ForgotForm>({
 
 const errorMessage = ref('')
 const isSubmitted = ref(false)
-const isLoading = ref(false)
 
 // ===============================
-// Form Submission
+// Throttled Form Submission
 // ===============================
-async function handleForgotPassword(event: { data: ForgotForm }) {
+const { execute: throttledSubmit, isLoading } = useThrottledAction(
+  async () => {
+    await doForgotPassword()
+  },
+  { throttleMs: 2000 }
+)
+
+async function doForgotPassword() {
   errorMessage.value = ''
-  isLoading.value = true
 
-  const { email } = event.data
+  const { email } = state
 
   try {
     // Request password reset via Directus (nuxt-directus composable)
@@ -41,9 +46,11 @@ async function handleForgotPassword(event: { data: ForgotForm }) {
     // Don't reveal if email exists or not for security
     // Still show success to prevent email enumeration
     isSubmitted.value = true
-  } finally {
-    isLoading.value = false
   }
+}
+
+function handleForgotPassword() {
+  throttledSubmit()
 }
 
 // ===============================

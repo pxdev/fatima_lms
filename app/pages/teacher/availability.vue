@@ -26,8 +26,30 @@ const {
 
 const showModal = ref(false)
 const editingRule = ref<any>(null)
-const isSaving = ref(false)
 const deleteConfirm = ref<string | null>(null)
+const formError = ref<string | null>(null)
+
+// Throttled actions for rate limiting
+const { execute: throttledSubmit, isLoading: isSaving } = useThrottledAction(
+  async () => {
+    await doSubmit()
+  },
+  { throttleMs: 1000 }
+)
+
+const { execute: throttledDelete, isLoading: isDeleting } = useThrottledAction(
+  async () => {
+    if (deleteConfirm.value) {
+      await doDelete(deleteConfirm.value)
+    }
+  },
+  { throttleMs: 1000 }
+)
+
+const { execute: throttledToggle, isLoading: isToggling } = useThrottledAction(
+  async () => {},
+  { throttleMs: 500 }
+)
 
 const schema = z.object({
   weekday: z.number().min(0).max(6),
@@ -58,12 +80,31 @@ onMounted(async () => {
   }
 })
 
+function normalizeTime(time: string): string {
+  // Convert "09:00:00" to "09:00" for comparison
+  return time.substring(0, 5)
+}
+
+function isDuplicateSlot(weekday: number, startTime: string, endTime: string, excludeId?: string): boolean {
+  const normalizedStart = normalizeTime(startTime)
+  const normalizedEnd = normalizeTime(endTime)
+  
+  return rules.value.some(rule => {
+    if (excludeId && rule.id === excludeId) return false
+    if (rule.weekday !== weekday) return false
+    // Check for exact match (normalized to HH:mm)
+    return normalizeTime(rule.start_time) === normalizedStart && 
+           normalizeTime(rule.end_time) === normalizedEnd
+  })
+}
+
 function openAddModal() {
   editingRule.value = null
   state.weekday = 0
   state.start_time = '09:00'
   state.end_time = '17:00'
   state.is_active = true
+  formError.value = null
   showModal.value = true
 }
 
@@ -73,13 +114,21 @@ function openEditModal(rule: any) {
   state.start_time = rule.start_time
   state.end_time = rule.end_time
   state.is_active = rule.is_active
+  formError.value = null
   showModal.value = true
 }
 
-async function handleSubmit() {
+async function doSubmit() {
   if (!profile.value?.id) return
 
-  isSaving.value = true
+  formError.value = null
+
+  // Check for duplicate slot (frontend validation)
+  const excludeId = editingRule.value?.id
+  if (isDuplicateSlot(state.weekday, state.start_time, state.end_time, excludeId)) {
+    formError.value = 'A time slot with the same day and times already exists'
+    return
+  }
 
   try {
     if (editingRule.value) {
@@ -101,12 +150,17 @@ async function handleSubmit() {
 
     showModal.value = false
     await fetchRules(profile.value.id)
-  } finally {
-    isSaving.value = false
+  } catch (err: any) {
+    // Handle backend validation errors
+    formError.value = err?.data?.statusMessage || err?.message || 'Failed to save time slot'
   }
 }
 
-async function handleDelete(id: string) {
+function handleSubmit() {
+  throttledSubmit()
+}
+
+async function doDelete(id: string) {
   if (!profile.value?.id) return
 
   await deleteRule(id)
@@ -114,8 +168,20 @@ async function handleDelete(id: string) {
   await fetchRules(profile.value.id)
 }
 
+function handleDelete() {
+  throttledDelete()
+}
+
+const togglingRuleId = ref<string | null>(null)
+
 async function toggleActive(rule: any) {
-  await updateRule(rule.id, { is_active: !rule.is_active })
+  if (isToggling.value) return
+  togglingRuleId.value = rule.id
+  try {
+    await updateRule(rule.id, { is_active: !rule.is_active })
+  } finally {
+    togglingRuleId.value = null
+  }
 }
 </script>
 
@@ -182,10 +248,10 @@ async function toggleActive(rule: any) {
               <UBadge
                 :color="rule.is_active ? 'success' : 'neutral'"
                 variant="soft"
-                class="cursor-pointer"
+                :class="{ 'cursor-pointer': !isToggling, 'opacity-50': togglingRuleId === rule.id }"
                 @click="toggleActive(rule)"
               >
-                {{ rule.is_active ? 'Active' : 'Inactive' }}
+                {{ togglingRuleId === rule.id ? 'Updating...' : (rule.is_active ? 'Active' : 'Inactive') }}
               </UBadge>
               <UButton
                 variant="ghost"
@@ -219,6 +285,15 @@ async function toggleActive(rule: any) {
             </template>
 
             <UForm :schema="schema" :state="state" class="space-y-4" @submit="handleSubmit">
+              <UAlert
+                v-if="formError"
+                color="error"
+                variant="soft"
+                icon="i-heroicons-exclamation-triangle"
+                :title="formError"
+                class="mb-4"
+              />
+
               <UFormField label="Day of Week" name="weekday" required>
                 <USelect
                   v-model="state.weekday"
@@ -290,13 +365,16 @@ async function toggleActive(rule: any) {
                 <UButton
                   color="neutral"
                   variant="outline"
+                  :disabled="isDeleting"
                   @click="deleteConfirm = null"
                 >
                   Cancel
                 </UButton>
                 <UButton
                   color="error"
-                  @click="deleteConfirm && handleDelete(deleteConfirm)"
+                  :loading="isDeleting"
+                  :disabled="isDeleting"
+                  @click="handleDelete"
                 >
                   Delete
                 </UButton>
@@ -307,4 +385,5 @@ async function toggleActive(rule: any) {
       </UModal>
   </div>
 </template>
+
 

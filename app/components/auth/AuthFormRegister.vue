@@ -31,17 +31,22 @@ const state = reactive<RegisterForm>({
 
 const errorMessage = ref('')
 const successMessage = ref('')
-const isLoading = ref(false)
 
 // ===============================
-// Form Submission
+// Throttled Form Submission
 // ===============================
-async function handleRegister(event: { data: RegisterForm }) {
+const { execute: throttledRegister, isLoading } = useThrottledAction(
+  async () => {
+    await doRegister()
+  },
+  { throttleMs: 2000 } // Longer throttle for registration
+)
+
+async function doRegister() {
   errorMessage.value = ''
   successMessage.value = ''
-  isLoading.value = true
 
-  const { display_name, email, password } = event.data
+  const { display_name, email, password } = state
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Riyadh'
 
   try {
@@ -88,9 +93,11 @@ async function handleRegister(event: { data: RegisterForm }) {
     } else {
       errorMessage.value = err?.data?.message || err?.message || 'Registration failed. Please try again.'
     }
-  } finally {
-    isLoading.value = false
   }
+}
+
+function handleRegister() {
+  throttledRegister()
 }
 </script>
 

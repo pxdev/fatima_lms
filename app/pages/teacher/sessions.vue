@@ -31,11 +31,39 @@ interface TeacherSession {
 }
 
 const sessions = ref<TeacherSession[]>([])
+const subscriptionIds = ref<string[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
-const isCompleting = ref<Record<string, boolean>>({})
+const completingSessionId = ref<string | null>(null)
+const approvingSessionId = ref<string | null>(null)
+
+// Throttled actions
+const { execute: throttledComplete, isLoading: isCompleting } = useThrottledAction(
+  async () => {
+    if (completingSessionId.value) {
+      await doCompleteSession(completingSessionId.value)
+    }
+  },
+  { throttleMs: 1000 }
+)
+
+const { execute: throttledApprove, isLoading: isApproving } = useThrottledAction(
+  async () => {
+    if (approvingSessionId.value) {
+      await doApprovePostpone(approvingSessionId.value)
+    }
+  },
+  { throttleMs: 1000 }
+)
 
 onMounted(async () => {
+  // Sync session statuses first (auto-complete expired sessions)
+  try {
+    await $fetch('/api/sessions/sync-status', { method: 'POST' })
+  } catch (err) {
+    console.warn('Failed to sync session statuses:', err)
+  }
+  
   await fetchProfile()
   
   if (profile.value?.role !== 'teacher') {
@@ -53,11 +81,28 @@ async function loadSessions() {
   error.value = null
 
   try {
+    // First fetch teacher's subscription IDs
+    const subs = await getItems<{ id: string }>({
+      collection: 'subscriptions',
+      params: {
+        filter: { teacher: { _eq: profile.value.id } },
+        fields: ['id']
+      }
+    })
+    
+    subscriptionIds.value = (subs || []).map(s => s.id)
+    
+    if (subscriptionIds.value.length === 0) {
+      sessions.value = []
+      return
+    }
+
+    // Then fetch sessions for those subscriptions
     const data = await getItems<TeacherSession>({
       collection: 'sessions',
       params: {
         filter: {
-          'subscription.teacher': { _eq: profile.value.id }
+          subscription: { _in: subscriptionIds.value }
         },
         fields: ['id', 'start_at', 'end_at', 'status', 'zoom_start_url', 'zoom_join_url',
                  'subscription.id', 'subscription.student.display_name',
@@ -75,9 +120,7 @@ async function loadSessions() {
   }
 }
 
-async function completeSession(sessionId: string) {
-  isCompleting.value[sessionId] = true
-
+async function doCompleteSession(sessionId: string) {
   try {
     await $fetch(`/api/sessions/${sessionId}/complete`, {
       method: 'POST'
@@ -87,11 +130,16 @@ async function completeSession(sessionId: string) {
   } catch (err: any) {
     error.value = err?.data?.statusMessage || 'Failed to complete session'
   } finally {
-    isCompleting.value[sessionId] = false
+    completingSessionId.value = null
   }
 }
 
-async function approvePostpone(sessionId: string) {
+function completeSession(sessionId: string) {
+  completingSessionId.value = sessionId
+  throttledComplete()
+}
+
+async function doApprovePostpone(sessionId: string) {
   try {
     await $fetch(`/api/sessions/${sessionId}/approve-postpone`, {
       method: 'POST'
@@ -100,7 +148,14 @@ async function approvePostpone(sessionId: string) {
     await loadSessions()
   } catch (err: any) {
     error.value = err?.data?.statusMessage || 'Failed to approve postpone'
+  } finally {
+    approvingSessionId.value = null
   }
+}
+
+function approvePostpone(sessionId: string) {
+  approvingSessionId.value = sessionId
+  throttledApprove()
 }
 
 function formatDateTime(dateStr: string): string {
@@ -204,6 +259,8 @@ function getRecentSessions() {
               <UButton
                 color="warning"
                 size="sm"
+                :loading="isApproving && approvingSessionId === session.id"
+                :disabled="isApproving"
                 @click="approvePostpone(session.id)"
               >
                 Approve Postpone
@@ -255,7 +312,8 @@ function getRecentSessions() {
                 <UButton
                   color="success"
                   variant="outline"
-                  :loading="isCompleting[session.id]"
+                  :loading="isCompleting && completingSessionId === session.id"
+                  :disabled="isCompleting"
                   @click="completeSession(session.id)"
                 >
                   Mark Complete
@@ -304,4 +362,5 @@ function getRecentSessions() {
       </div>
   </div>
 </template>
+
 

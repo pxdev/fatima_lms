@@ -9,6 +9,10 @@ interface Course {
   slug: string
   description: string | null
   level: string | null
+  icon: string | null          // Icon name (e.g., 'i-heroicons-book-open')
+  color: string | null         // Color theme (e.g., 'emerald', 'blue', 'purple')
+  features: string[] | null    // List of features/benefits
+  is_popular: boolean          // Show "Popular" badge
   sort: number | null
   is_active: boolean
 }

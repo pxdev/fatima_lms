@@ -33,11 +33,6 @@ useHead({
               <DashboardBreadcrumb />
             </template>
             
-            <template #trailing>
-              <div class="flex items-center gap-2">
-                <UColorModeButton />
-              </div>
-            </template>
           </UDashboardNavbar>
         </template>
 

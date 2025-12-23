@@ -73,29 +73,32 @@ export function useTeacherAvailability() {
   }
 
   /**
-   * Create a new availability rule
+   * Create a new availability rule (via API with duplicate validation)
    */
   async function createRule(payload: CreateAvailabilityPayload): Promise<AvailabilityRule | null> {
     isLoading.value = true
     error.value = null
 
     try {
-      const data = await createItems<AvailabilityRule>({
-        collection: 'teacher_availability_rules',
-        items: [{
-          ...payload,
+      const response = await $fetch<{ success: boolean; data: AvailabilityRule }>('/api/availability', {
+        method: 'POST',
+        body: {
+          teacher: payload.teacher,
+          weekday: payload.weekday,
+          start_time: payload.start_time,
+          end_time: payload.end_time,
           is_active: payload.is_active ?? true
-        }]
+        }
       })
 
-      if (data && data.length > 0) {
-        rules.value.push(data[0])
-        return data[0]
+      if (response.success && response.data) {
+        rules.value.push(response.data)
+        return response.data
       }
       return null
     } catch (err: any) {
-      error.value = err?.data?.errors?.[0]?.message || err?.message || 'Failed to create rule'
-      return null
+      error.value = err?.data?.statusMessage || err?.message || 'Failed to create rule'
+      throw err // Re-throw to let the component handle it
     } finally {
       isLoading.value = false
     }
@@ -167,6 +170,34 @@ export function useTeacherAvailability() {
     return rules.value.filter(r => r.is_active)
   }
 
+  /**
+   * Get available time slots for a specific date based on teacher availability
+   */
+  function getAvailableSlotsForDate(date: Date): { start_time: string; end_time: string }[] {
+    const weekday = date.getDay() // 0 = Sunday, 6 = Saturday
+    const activeRules = rules.value.filter(r => r.is_active && r.weekday === weekday)
+    
+    return activeRules.map(rule => ({
+      start_time: rule.start_time,
+      end_time: rule.end_time
+    }))
+  }
+
+  /**
+   * Check if a specific weekday has any availability
+   */
+  function hasAvailabilityOnWeekday(weekday: number): boolean {
+    return rules.value.some(r => r.is_active && r.weekday === weekday)
+  }
+
+  /**
+   * Get all weekdays with availability
+   */
+  function getAvailableWeekdays(): number[] {
+    const activeRules = rules.value.filter(r => r.is_active)
+    return [...new Set(activeRules.map(r => r.weekday))]
+  }
+
   return {
     rules,
     isLoading,
@@ -177,7 +208,10 @@ export function useTeacherAvailability() {
     updateRule,
     deleteRule,
     getWeekdayLabel,
-    getActiveRules
+    getActiveRules,
+    getAvailableSlotsForDate,
+    hasAvailabilityOnWeekday,
+    getAvailableWeekdays
   }
 }
 

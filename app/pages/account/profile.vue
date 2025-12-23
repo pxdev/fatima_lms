@@ -62,7 +62,6 @@ const state = reactive<ProfileForm>({
 
 const successMessage = ref('')
 const formError = ref('')
-const isSaving = ref(false)
 
 // ===============================
 // Fetch profile on mount
@@ -80,15 +79,21 @@ onMounted(async () => {
 })
 
 // ===============================
-// Form Submission
+// Throttled Form Submission
 // ===============================
-async function handleSubmit(event: { data: ProfileForm }) {
+const { execute: throttledSubmit, isLoading: isSaving } = useThrottledAction(
+  async () => {
+    await doSubmit()
+  },
+  { throttleMs: 1000 }
+)
+
+async function doSubmit() {
   successMessage.value = ''
   formError.value = ''
-  isSaving.value = true
 
   try {
-    const { display_name, phone, timezone, bio, languages } = event.data
+    const { display_name, phone, timezone, bio, languages } = state
 
     const updated = await updateProfile({
       display_name,
@@ -104,9 +109,11 @@ async function handleSubmit(event: { data: ProfileForm }) {
   } catch (err: any) {
     console.error('Error saving profile:', err)
     formError.value = err?.message || 'Failed to save profile'
-  } finally {
-    isSaving.value = false
   }
+}
+
+function handleSubmit() {
+  throttledSubmit()
 }
 </script>
 
