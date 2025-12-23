@@ -1,6 +1,8 @@
 <script setup lang="ts">
-import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
+import { today, getLocalTimeZone } from '@internationalized/date'
+import type { DateValue } from '@internationalized/date'
 import { format, isBefore, isSameDay, startOfDay, parseISO, getHours, getMinutes, getDay } from 'date-fns'
+import { useTimeoutFn } from '@vueuse/core'
 
 definePageMeta({
   middleware: 'auth',
@@ -15,91 +17,210 @@ useSeoMeta({
   description: 'Schedule your weekly sessions'
 })
 
+// Composables
 const { currentSubscription, fetchSubscription } = useSubscriptions()
 const { weeks, currentWeek, fetchWeeks, getOrCreateWeek, submitWeek, getStatusColor: getWeekStatusColor } = useWeeks()
 const { slots, fetchSlots, createSlot, deleteSlot, formatSlotTime, isLoading: slotsLoading } = useWeekSlots()
 const { packages, fetchPackages, getPackageById } = usePackages()
-const { getItems, getItemById } = useDirectusItems()
-
-// Store all slots from all weeks to check for duplicates
-const allSlots = ref<any[]>([])
+const { getItems } = useDirectusItems()
 const { 
   rules: teacherAvailability, 
   fetchRules: fetchTeacherAvailability, 
   getAvailableSlotsForDate,
   hasAvailabilityOnWeekday,
   getWeekdayLabel,
-  isLoading: availabilityLoading
 } = useTeacherAvailability()
 
+// State
+const allSlots = ref<Array<{ id: string; week: string; start_at: string; end_at: string }>>([])
 const selectedWeekIndex = ref(1)
-const error = ref<string | null>(null)
-const success = ref<string | null>(null)
-const isPageLoading = ref(true)
-
-// Calendar state
-const selectedDate = ref<CalendarDate>(today(getLocalTimeZone()))
+const selectedDate = ref<DateValue>(today(getLocalTimeZone()))
 const selectedSlot = ref<{ start_time: string; end_time: string } | null>(null)
+const deletingSlotId = ref<string | null>(null)
 
-// Minimum selectable date (today)
+// UI State
+const [error, toggleError] = useToggle(false)
+const [success, toggleSuccess] = useToggle(false)
+const errorMessage = ref<string>('')
+const successMessage = ref<string>('')
+const isPageLoading = ref(true)
+const isDeleting = ref(false)
+
+// Computed
 const minDate = computed(() => today(getLocalTimeZone()))
+const selectedPackage = computed(() => 
+  currentSubscription.value ? getPackageById(currentSubscription.value.package) : null
+)
+const requiredSlots = computed(() => selectedPackage.value?.sessions_per_week || 2)
+const canSubmit = computed(() => 
+  currentWeek.value?.status === 'draft' && slots.value.length >= requiredSlots.value
+)
+const hasTeacherAvailability = computed(() => 
+  teacherAvailability.value.filter(r => r.is_active).length > 0
+)
+const totalWeeks = computed(() => currentSubscription.value?.weeks_total || 4)
 
-// Check if a date is in the past
-function isPastDate(date: CalendarDate): boolean {
-  const dateObj = new Date(date.year, date.month - 1, date.day)
+// ========== Utility Functions ==========
+
+/**
+ * Convert DateValue to native Date object
+ */
+function dateValueToDate(date: DateValue): Date {
+  return new Date(date.year, date.month - 1, date.day)
+}
+
+/**
+ * Parse time string (HH:mm) to hours and minutes
+ */
+function parseTime(time: string): { hours: number; minutes: number } {
+  const parts = time.split(':').map(Number)
+  return {
+    hours: parts[0] ?? 0,
+    minutes: parts[1] ?? 0
+  }
+}
+
+/**
+ * Create Date object from DateValue and time string
+ */
+function createDateTime(date: DateValue, time: string): Date {
+  const { hours, minutes } = parseTime(time)
+  return new Date(date.year, date.month - 1, date.day, hours, minutes)
+}
+
+/**
+ * Check if two slots have the same date and time
+ */
+function slotsMatch(
+  slot1Start: Date,
+  slot1End: Date,
+  slot2Start: Date,
+  slot2End: Date
+): boolean {
+  const sameDate = isSameDay(slot1Start, slot2Start)
+  if (!sameDate) return false
+  
+  return (
+    getHours(slot1Start) === getHours(slot2Start) &&
+    getMinutes(slot1Start) === getMinutes(slot2Start) &&
+    getHours(slot1End) === getHours(slot2End) &&
+    getMinutes(slot1End) === getMinutes(slot2End)
+  )
+}
+
+/**
+ * Check if a date is in the past
+ */
+function isPastDate(date: DateValue): boolean {
+  const dateObj = dateValueToDate(date)
   const todayObj = startOfDay(new Date())
   return isBefore(dateObj, todayObj)
 }
 
-// Throttled actions
+// ========== Actions ==========
+
 const { execute: throttledAddSlot, isLoading: isSaving } = useThrottledAction(
-  async () => {
-    await doAddSlot()
-  },
+  async () => await doAddSlot(),
   { throttleMs: 1000 }
 )
 
 const { execute: throttledSubmitWeek, isLoading: isSubmitting } = useThrottledAction(
-  async () => {
-    await doSubmitWeek()
-  },
+  async () => await doSubmitWeek(),
   { throttleMs: 1000 }
 )
 
-const deletingSlotId = ref<string | null>(null)
-const isDeleting = ref(false)
+// Auto-hide success message after 4 seconds
+const { start: startSuccessTimer } = useTimeoutFn(() => {
+  toggleSuccess(false)
+  successMessage.value = ''
+}, 4000)
 
-const selectedPackage = computed(() => 
-  currentSubscription.value ? getPackageById(currentSubscription.value.package) : null
-)
+// ========== Computed Properties ==========
 
-const requiredSlots = computed(() => selectedPackage.value?.sessions_per_week || 2)
+/**
+ * Calculate overall progress across all weeks
+ */
+const overallProgress = computed(() => {
+  if (!currentSubscription.value) {
+    return { completed: 0, total: 0, percentage: 0 }
+  }
+  
+  const maxWeeks = totalWeeks.value
+  let completedWeeks = 0
+  
+  for (let i = 1; i <= maxWeeks; i++) {
+    const week = weeks.value.find(w => w.week_index === i)
+    if (!week) continue
+    
+    if (week.status === 'submitted' || week.status === 'approved') {
+      completedWeeks++
+    } else if (week.status === 'draft') {
+      const weekSlots = allSlots.value.filter(slot => slot.week === week.id)
+      if (weekSlots.length >= requiredSlots.value) {
+        completedWeeks++
+      }
+    }
+  }
+  
+  return {
+    completed: completedWeeks,
+    total: maxWeeks,
+    percentage: maxWeeks > 0 ? Math.round((completedWeeks / maxWeeks) * 100) : 0
+  }
+})
 
-const canSubmit = computed(() => 
-  currentWeek.value?.status === 'draft' && 
-  slots.value.length >= requiredSlots.value
-)
+/**
+ * Get available slots for the selected date
+ */
+const availableSlotsForSelectedDate = computed(() => {
+  if (!selectedDate.value) return []
+  
+  const date = dateValueToDate(selectedDate.value as DateValue)
+  const availableSlots = getAvailableSlotsForDate(date)
+  
+  return availableSlots.map(slot => ({
+    start_time: slot.start_time,
+    end_time: slot.end_time
+  }))
+})
+
+/**
+ * Get slots count for a specific week
+ */
+function getWeekSlotsCount(weekId: string): number {
+  return allSlots.value.filter(slot => slot.week === weekId).length
+}
+
+/**
+ * Calculate slot duration in minutes
+ */
+function getSlotDuration(startTime: string, endTime: string): number {
+  const start = parseTime(startTime)
+  const end = parseTime(endTime)
+  const startMinutes = start.hours * 60 + start.minutes
+  const endMinutes = end.hours * 60 + end.minutes
+  return endMinutes - startMinutes
+}
 
 
-// Check if a week is complete (has all required slots)
+// ========== Week Status Functions ==========
+
+/**
+ * Check if a week is complete (has all required slots)
+ */
 function isWeekComplete(weekIndex: number): boolean {
   const week = weeks.value.find(w => w.week_index === weekIndex)
   if (!week) return false
   
-  // If week is already submitted/approved, it's complete
   if (week.status !== 'draft') return true
   
-  // For draft weeks, check if they have all required slots
-  // We need to check slots for that specific week
-  const weekSlots = allSlots.value.filter(slot => {
-    const slotWeek = weeks.value.find(w => w.id === slot.week)
-    return slotWeek?.week_index === weekIndex
-  })
-  
-  return weekSlots.length >= requiredSlots.value
+  const weekSlotsCount = getWeekSlotsCount(week.id)
+  return weekSlotsCount >= requiredSlots.value
 }
 
-// Get week status for display
+/**
+ * Get week status for display
+ */
 function getWeekStatus(weekIndex: number): 'complete' | 'incomplete' | 'submitted' | 'approved' {
   const week = weeks.value.find(w => w.week_index === weekIndex)
   if (!week) return 'incomplete'
@@ -113,159 +234,273 @@ function getWeekStatus(weekIndex: number): 'complete' | 'incomplete' | 'submitte
   return 'incomplete'
 }
 
-// Get available slots for the selected date (no timezone conversion - show as teacher set them)
-const availableSlotsForSelectedDate = computed(() => {
-  if (!selectedDate.value) return []
+/**
+ * Check if a date has teacher availability (for calendar markers)
+ */
+function isDateAvailable(date: DateValue | any): boolean {
+  if (isPastDate(date as DateValue)) return false
   
-  const date = new Date(selectedDate.value.year, selectedDate.value.month - 1, selectedDate.value.day)
-  const slots = getAvailableSlotsForDate(date)
-  
-  // Return slots exactly as teacher set them (no conversion)
-  return slots.map(slot => ({
-    start_time: slot.start_time,
-    end_time: slot.end_time
-  }))
-})
-
-// Check if teacher has availability set
-const hasTeacherAvailability = computed(() => {
-  return teacherAvailability.value.filter(r => r.is_active).length > 0
-})
-
-// Check if a date has teacher availability (for calendar markers)
-// Also excludes past dates
-function isDateAvailable(date: CalendarDate): boolean {
-  // Don't show badge for past dates
-  const dateObj = new Date(date.year, date.month - 1, date.day)
-  const today = startOfDay(new Date())
-  if (isBefore(dateObj, today)) {
-    return false
-  }
-  
+  const dateObj = dateValueToDate(date as DateValue)
   const weekday = getDay(dateObj)
   return hasAvailabilityOnWeekday(weekday)
 }
 
-// Check if a slot (date + time) already exists in any week
-// startTime and endTime should be in HH:mm format (teacher's original time)
-function isSlotAlreadyTaken(date: CalendarDate, startTime: string, endTime: string): boolean {
+// ========== Slot Validation Functions ==========
+
+/**
+ * Check if a slot (date + time) already exists in any week
+ */
+function isSlotAlreadyTaken(date: DateValue, startTime: string, endTime: string): boolean {
   if (!date || !startTime || !endTime) return false
   
-  const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
-  const [startHours, startMinutes] = startTime.split(':').map(Number)
-  const [endHours, endMinutes] = endTime.split(':').map(Number)
+  const newSlotStart = createDateTime(date, startTime)
+  const newSlotEnd = createDateTime(date, endTime)
   
-  // Create date objects for comparison
-  const startDate = new Date(date.year, date.month - 1, date.day, startHours, startMinutes)
-  const endDate = new Date(date.year, date.month - 1, date.day, endHours, endMinutes)
-  
-  // Check if any existing slot matches this date and time
   return allSlots.value.some(slot => {
-    // Compare dates (ignore timezone, just check if same day and time)
     const slotStart = parseISO(slot.start_at)
     const slotEnd = parseISO(slot.end_at)
-    
-    // Check if same date
-    const sameDate = isSameDay(slotStart, startDate)
-    
-    if (!sameDate) return false
-    
-    // Check if same time (compare hours and minutes)
-    const sameStartTime = getHours(slotStart) === getHours(startDate) &&
-                         getMinutes(slotStart) === getMinutes(startDate)
-    const sameEndTime = getHours(slotEnd) === getHours(endDate) &&
-                       getMinutes(slotEnd) === getMinutes(endDate)
-    
-    return sameStartTime && sameEndTime
+    return slotsMatch(newSlotStart, newSlotEnd, slotStart, slotEnd)
   })
 }
 
-// Get which week a slot is already scheduled in
-function getSlotWeekNumber(date: CalendarDate, startTime: string, endTime: string): number | null {
+/**
+ * Get which week a slot is already scheduled in
+ */
+function getSlotWeekNumber(date: DateValue, startTime: string, endTime: string): number | null {
   if (!date || !startTime || !endTime) return null
   
-  const [startHours, startMinutes] = startTime.split(':').map(Number)
-  const [endHours, endMinutes] = endTime.split(':').map(Number)
+  const newSlotStart = createDateTime(date, startTime)
+  const newSlotEnd = createDateTime(date, endTime)
   
-  const startDate = new Date(date.year, date.month - 1, date.day, startHours, startMinutes)
-  const endDate = new Date(date.year, date.month - 1, date.day, endHours, endMinutes)
-  
-  // Find the matching slot
   const matchingSlot = allSlots.value.find(slot => {
     const slotStart = parseISO(slot.start_at)
     const slotEnd = parseISO(slot.end_at)
-    
-    const sameDate = isSameDay(slotStart, startDate)
-    
-    if (!sameDate) return false
-    
-    const sameStartTime = getHours(slotStart) === getHours(startDate) &&
-                         getMinutes(slotStart) === getMinutes(startDate)
-    const sameEndTime = getHours(slotEnd) === getHours(endDate) &&
-                       getMinutes(slotEnd) === getMinutes(endDate)
-    
-    return sameStartTime && sameEndTime
+    return slotsMatch(newSlotStart, newSlotEnd, slotStart, slotEnd)
   })
   
   if (!matchingSlot) return null
   
-  // Find which week this slot belongs to
   const week = weeks.value.find(w => w.id === matchingSlot.week)
-  return week ? week.week_index : null
+  return week?.week_index ?? null
 }
 
-// Fetch all slots from all weeks for duplicate checking
+// ========== Data Fetching ==========
+
+/**
+ * Fetch all slots from all weeks for duplicate checking
+ */
 async function fetchAllSlots() {
-  if (!weeks.value || weeks.value.length === 0) {
+  if (!weeks.value?.length) {
     allSlots.value = []
     return
   }
   
   try {
     const weekIds = weeks.value.map(w => w.id)
-    if (weekIds.length === 0) {
-      allSlots.value = []
-      return
-    }
-    
     const slotsData = await getItems({
       collection: 'week_slots',
       params: {
-        filter: {
-          week: { _in: weekIds }
-        },
+        filter: { week: { _in: weekIds } },
         fields: ['id', 'week', 'start_at', 'end_at']
       }
     })
     
-    allSlots.value = slotsData || []
+    allSlots.value = (slotsData || []) as Array<{ id: string; week: string; start_at: string; end_at: string }>
   } catch (err) {
     console.error('Failed to fetch all slots:', err)
     allSlots.value = []
   }
 }
 
-// Format the selected date for display
+// ========== Formatting Functions ==========
+
+/**
+ * Format the selected date for display
+ */
 function formatSelectedDate(): string {
   if (!selectedDate.value) return ''
-  const date = new Date(selectedDate.value.year, selectedDate.value.month - 1, selectedDate.value.day)
+  const date = dateValueToDate(selectedDate.value as DateValue)
   return format(date, 'EEEE, MMMM d, yyyy')
 }
 
-// Get weekday name for selected date
+/**
+ * Get weekday name for selected date
+ */
 function getSelectedWeekday(): string {
   if (!selectedDate.value) return ''
-  const date = new Date(selectedDate.value.year, selectedDate.value.month - 1, selectedDate.value.day)
+  const date = dateValueToDate(selectedDate.value as DateValue)
   return getWeekdayLabel(getDay(date))
 }
 
-// Watch selectedDate to prevent selecting past dates
+/**
+ * Format time for display (HH:mm -> h:mm AM/PM)
+ */
+function formatTime(time: string): string {
+  const { hours, minutes } = parseTime(time)
+  const period = hours >= 12 ? 'PM' : 'AM'
+  const displayHours = hours % 12 || 12
+  return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`
+}
+
+// ========== Watchers ==========
+
+/**
+ * Prevent selecting past dates
+ */
 watch(selectedDate, (newDate) => {
-  if (newDate && isPastDate(newDate)) {
-    // Reset to today if user tries to select a past date
-    selectedDate.value = today(getLocalTimeZone())
+  if (newDate && isPastDate(newDate as DateValue)) {
+    selectedDate.value = today(getLocalTimeZone()) as any
   }
 })
+
+// ========== Event Handlers ==========
+
+/**
+ * Load a specific week
+ */
+async function loadWeek(weekIndex: number) {
+  selectedWeekIndex.value = weekIndex
+  const week = await getOrCreateWeek(subscriptionId.value, weekIndex)
+  if (week) {
+    await fetchSlots(week.id)
+    await fetchAllSlots()
+  }
+}
+
+/**
+ * Select a time slot
+ */
+function selectSlot(slot: { start_time: string; end_time: string }) {
+  selectedSlot.value = slot
+}
+
+/**
+ * Show error message
+ */
+function showError(message: string) {
+  toggleError(true)
+  errorMessage.value = message
+}
+
+/**
+ * Show success message
+ */
+function showSuccess(message: string) {
+  toggleSuccess(true)
+  successMessage.value = message
+  startSuccessTimer()
+}
+
+/**
+ * Create ISO datetime string from date and time
+ */
+function createISOString(date: DateValue, time: string): string {
+  const { hours, minutes } = parseTime(time)
+  const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
+  return `${dateStr}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00Z`
+}
+
+/**
+ * Add a slot to the current week
+ */
+async function doAddSlot() {
+  if (!currentWeek.value || !selectedSlot.value || !selectedDate.value) return
+
+  toggleError(false)
+
+  if (slots.value.length >= requiredSlots.value) {
+    showError(`You can only add ${requiredSlots.value} session${requiredSlots.value === 1 ? '' : 's'} per week. Please remove a slot first if you want to change it.`)
+    return
+  }
+
+  const { start_time, end_time } = selectedSlot.value
+
+  if (isSlotAlreadyTaken(selectedDate.value as DateValue, start_time, end_time)) {
+    showError('This time slot is already scheduled in another week')
+    return
+  }
+
+  try {
+    const startAt = createISOString(selectedDate.value as DateValue, start_time)
+    const endAt = createISOString(selectedDate.value as DateValue, end_time)
+
+    const created = await createSlot({
+      week: currentWeek.value.id,
+      start_at: startAt,
+      end_at: endAt,
+      note: null
+    })
+
+    if (!created) {
+      showError('Failed to create slot')
+      return
+    }
+
+    await Promise.all([
+      fetchAllSlots(),
+      fetchSlots(currentWeek.value.id)
+    ])
+    
+    selectedSlot.value = null
+    
+    const message = slots.value.length >= requiredSlots.value
+      ? `🎉 Week ${selectedWeekIndex.value} complete! All ${requiredSlots.value} sessions scheduled.`
+      : '✓ Session scheduled successfully!'
+    
+    showSuccess(message)
+  } catch (err: any) {
+    console.error('Error creating slot:', err)
+    showError(err?.data?.statusMessage || err?.message || 'Failed to schedule session')
+  }
+}
+
+function handleAddSlot() {
+  throttledAddSlot()
+}
+
+/**
+ * Delete a slot
+ */
+async function handleDeleteSlot(slotId: string) {
+  if (isDeleting.value) return
+  
+  isDeleting.value = true
+  deletingSlotId.value = slotId
+  
+  try {
+    await deleteSlot(slotId)
+    await fetchAllSlots()
+  } finally {
+    deletingSlotId.value = null
+    isDeleting.value = false
+  }
+}
+
+/**
+ * Submit week for approval
+ */
+async function doSubmitWeek() {
+  if (!currentWeek.value) return
+
+  toggleError(false)
+
+  try {
+    await submitWeek(currentWeek.value.id)
+    showSuccess('Week submitted for approval!')
+    
+    useTimeoutFn(() => {
+      navigateTo(`/student/subscriptions/${subscriptionId.value}`)
+    }, 2000)
+  } catch (err: any) {
+    showError(err?.message || 'Failed to submit week')
+  }
+}
+
+function handleSubmitWeek() {
+  throttledSubmitWeek()
+}
+
+// ========== Lifecycle ==========
 
 onMounted(async () => {
   isPageLoading.value = true
@@ -276,149 +511,17 @@ onMounted(async () => {
       fetchPackages()
     ])
 
-    // Fetch teacher's availability if subscription has a teacher assigned
     if (currentSubscription.value?.teacher) {
       await fetchTeacherAvailability(currentSubscription.value.teacher)
     }
 
-    // Load weeks and select first draft week or create new one
     await fetchWeeks(subscriptionId.value)
     await loadWeek(selectedWeekIndex.value)
-    // Fetch all slots for duplicate checking
     await fetchAllSlots()
   } finally {
     isPageLoading.value = false
   }
 })
-
-async function loadWeek(weekIndex: number) {
-  selectedWeekIndex.value = weekIndex
-  const week = await getOrCreateWeek(subscriptionId.value, weekIndex)
-  if (week) {
-    await fetchSlots(week.id)
-    // Refresh all slots for duplicate checking
-    await fetchAllSlots()
-  }
-}
-
-function selectSlot(slot: { start_time: string; end_time: string }) {
-  selectedSlot.value = slot
-}
-
-async function doAddSlot() {
-  if (!currentWeek.value || !selectedSlot.value || !selectedDate.value) return
-
-  error.value = null
-
-  // Check if already reached the required number of slots
-  if (slots.value.length >= requiredSlots.value) {
-    error.value = `You can only add ${requiredSlots.value} session${requiredSlots.value === 1 ? '' : 's'} per week. Please remove a slot first if you want to change it.`
-    return
-  }
-
-  try {
-    // Use the selected slot times directly (no conversion)
-    const startTime = selectedSlot.value.start_time
-    const endTime = selectedSlot.value.end_time
-    
-    // Format date as YYYY-MM-DD
-    const dateStr = `${selectedDate.value.year}-${String(selectedDate.value.month).padStart(2, '0')}-${String(selectedDate.value.day).padStart(2, '0')}`
-    
-    // Create datetime strings using the times directly
-    // Store the time exactly as teacher set it, treating it as UTC
-    // This way, 9:00 PM will always display as 9:00 PM regardless of browser timezone
-    const [startHours, startMinutes] = startTime.split(':').map(Number)
-    const [endHours, endMinutes] = endTime.split(':').map(Number)
-    
-    // Create ISO string treating the time as UTC (add 'Z' for UTC)
-    const startDateTimeStr = `${dateStr}T${String(startHours).padStart(2, '0')}:${String(startMinutes).padStart(2, '0')}:00Z`
-    const endDateTimeStr = `${dateStr}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:00Z`
-    
-    // Use these directly as ISO strings (they're already in UTC format)
-    const startAt = startDateTimeStr
-    const endAt = endDateTimeStr
-
-    // Check if slot already exists before creating
-    if (isSlotAlreadyTaken(selectedDate.value, startTime, endTime)) {
-      error.value = 'This time slot is already scheduled in another week'
-      return
-    }
-
-    const created = await createSlot({
-      week: currentWeek.value.id,
-      start_at: startAt,
-      end_at: endAt,
-      note: null
-    })
-
-    if (!created) {
-      error.value = 'Failed to create slot'
-      return
-    }
-
-    // Refresh all slots after creating
-    await fetchAllSlots()
-    await fetchSlots(currentWeek.value.id) // Refresh current week's slots
-    
-    selectedSlot.value = null
-    success.value = 'Session scheduled successfully!'
-    setTimeout(() => success.value = null, 3000)
-  } catch (err: any) {
-    console.error('Error creating slot:', err)
-    error.value = err?.data?.statusMessage || err?.message || 'Failed to schedule session'
-  }
-}
-
-
-function handleAddSlot() {
-  throttledAddSlot()
-}
-
-async function handleDeleteSlot(slotId: string) {
-  if (isDeleting.value) return
-  isDeleting.value = true
-  deletingSlotId.value = slotId
-  try {
-    await deleteSlot(slotId)
-    // Refresh all slots after deletion
-    await fetchAllSlots()
-  } finally {
-    deletingSlotId.value = null
-    isDeleting.value = false
-  }
-}
-
-async function doSubmitWeek() {
-  if (!currentWeek.value) return
-
-  error.value = null
-
-  try {
-    await submitWeek(currentWeek.value.id)
-    success.value = 'Week submitted for approval!'
-    
-    // Redirect back to subscription page
-    setTimeout(() => {
-      navigateTo(`/student/subscriptions/${subscriptionId.value}`)
-    }, 2000)
-  } catch (err: any) {
-    error.value = err?.message || 'Failed to submit week'
-  }
-}
-
-function handleSubmitWeek() {
-  throttledSubmitWeek()
-}
-
-// Format time for display (HH:mm or HH:mm:ss -> h:mm AM/PM)
-// Note: This is for formatting time strings from availability rules, not ISO dates
-// For ISO dates, use formatTimeTz directly
-function formatTime(time: string): string {
-  const [hours, minutes] = time.split(':').map(Number)
-  const period = hours >= 12 ? 'PM' : 'AM'
-  const displayHours = hours % 12 || 12
-  return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`
-}
 </script>
 
 <template>
@@ -444,6 +547,28 @@ function formatTime(time: string): string {
           Choose {{ requiredSlots }} time slots for Week {{ selectedWeekIndex }} from your teacher's available times
         </p>
       </div>
+
+      <!-- Progress Bar at Top -->
+      <UCard v-if="currentSubscription" class="mb-6">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-sm font-semibold text-slate-700">Total Progress</span>
+            <span class="text-lg font-bold" :class="overallProgress.percentage === 100 ? 'text-green-600' : 'text-primary-600'">
+              {{ overallProgress.percentage }}%
+            </span>
+          </div>
+          <div class="h-3 overflow-hidden rounded-full bg-slate-200">
+            <div
+              class="h-full rounded-full transition-all duration-500 ease-out"
+              :class="overallProgress.percentage === 100 ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-primary-500 to-primary-600'"
+              :style="{ width: `${overallProgress.percentage}%` }"
+            />
+          </div>
+          <p class="text-xs text-slate-500 text-center">
+            {{ overallProgress.completed }} of {{ overallProgress.total }} weeks completed
+          </p>
+        </div>
+      </UCard>
 
       <!-- Loading State -->
       <div v-if="isPageLoading" class="space-y-6">
@@ -497,74 +622,113 @@ function formatTime(time: string): string {
           color="error"
           variant="soft"
           icon="i-heroicons-exclamation-triangle"
-          :title="error"
+          :title="errorMessage"
           class="mb-6"
           closable
-          @close="error = null"
+          @close="toggleError(false)"
         />
         <UAlert
           v-if="success"
           color="success"
           variant="soft"
           icon="i-heroicons-check-circle"
-          :title="success"
+          :title="successMessage"
           class="mb-6"
         />
 
-        <!-- Week Selector -->
+        <!-- Enhanced Week Steps -->
         <UCard class="mb-6">
-          <div class="flex flex-wrap items-center justify-between gap-4">
-            <div class="flex flex-wrap items-center gap-4">
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
               <span class="text-sm font-medium text-slate-600">Select Week:</span>
-              <div class="flex flex-wrap gap-2">
-                <UButton
-                  v-for="i in (currentSubscription?.weeks_total || 4)"
-                  :key="i"
-                  size="xl"
-                  :color="selectedWeekIndex === i ? 'primary' : 'neutral'"
-                  :variant="selectedWeekIndex === i ? 'solid' : 'outline'"
-                  class="relative"
-                  @click="loadWeek(i)"
+              <div class="flex items-center gap-3">
+                <UBadge
+                  v-if="currentWeek"
+                  :color="getWeekStatusColor(currentWeek.status) as any"
+                  variant="soft"
+                  size="lg"
                 >
-                  <span class="flex items-center gap-2">
-                    Week {{ i }}
-                    <!-- Status indicator -->
+                  {{ currentWeek.status }}
+                </UBadge>
+                <UBadge
+                  v-if="currentWeek && currentWeek.status === 'draft'"
+                  :color="(isWeekComplete(selectedWeekIndex) ? 'success' : 'warning') as any"
+                  variant="soft"
+                  size="lg"
+                >
+                  {{ slots.length }}/{{ requiredSlots }} slots
+                </UBadge>
+              </div>
+            </div>
+            
+            <!-- Improved Week Steps -->
+            <div class="flex items-center justify-center gap-1 overflow-x-auto py-2">
+              <div
+                v-for="i in (currentSubscription?.weeks_total || 4)"
+                :key="i"
+                class="flex items-center flex-shrink-0"
+              >
+                <!-- Step Circle -->
+                <button
+                  @click="loadWeek(i)"
+                  class="group relative flex flex-col items-center"
+                >
+                  <div
+                    class="relative flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all duration-200"
+                    :class="{
+                      'border-primary-500 bg-primary-500 text-white shadow-lg scale-110': selectedWeekIndex === i && getWeekStatus(i) === 'incomplete',
+                      'border-green-500 bg-green-500 text-white shadow-lg': getWeekStatus(i) === 'complete' || getWeekStatus(i) === 'approved',
+                      'border-amber-500 bg-amber-500 text-white shadow-lg': getWeekStatus(i) === 'submitted',
+                      'border-slate-300 bg-white text-slate-400 hover:border-primary-300 hover:bg-slate-50': selectedWeekIndex !== i && getWeekStatus(i) === 'incomplete'
+                    }"
+                  >
+                    <!-- Check Icon for Completed/Approved -->
                     <UIcon
-                      v-if="getWeekStatus(i) === 'complete'"
-                      name="i-heroicons-check-circle"
-                      class="h-4 w-4 text-green-500"
+                      v-if="getWeekStatus(i) === 'complete' || getWeekStatus(i) === 'approved'"
+                      name="i-heroicons-check"
+                      class="h-6 w-6"
                     />
+                    <!-- Clock Icon for Submitted -->
                     <UIcon
                       v-else-if="getWeekStatus(i) === 'submitted'"
                       name="i-heroicons-clock"
-                      class="h-4 w-4 text-amber-500"
+                      class="h-5 w-5"
                     />
-                    <UIcon
-                      v-else-if="getWeekStatus(i) === 'approved'"
-                      name="i-heroicons-check-badge"
-                      class="h-4 w-4 text-blue-500"
-                    />
+                    <!-- Week Number for Incomplete -->
+                    <span
+                      v-else
+                      class="text-sm font-bold"
+                      :class="{
+                        'text-white': selectedWeekIndex === i,
+                        'text-slate-500': selectedWeekIndex !== i
+                      }"
+                    >
+                      {{ i }}
+                    </span>
+                  </div>
+                  
+                  <!-- Week Label -->
+                  <span
+                    class="mt-2 text-xs font-medium"
+                    :class="{
+                      'text-primary-600': selectedWeekIndex === i,
+                      'text-slate-500': selectedWeekIndex !== i
+                    }"
+                  >
+                    Week {{ i }}
                   </span>
-                </UButton>
+                </button>
+                
+                <!-- Connector Line -->
+                <div
+                  v-if="i < (currentSubscription?.weeks_total || 4)"
+                  class="h-0.5 w-8 sm:w-12 mx-1 transition-colors duration-200"
+                  :class="{
+                    'bg-green-500': getWeekStatus(i) === 'complete' || getWeekStatus(i) === 'approved' || getWeekStatus(i) === 'submitted',
+                    'bg-slate-200': getWeekStatus(i) === 'incomplete'
+                  }"
+                />
               </div>
-            </div>
-            <div class="flex items-center gap-3">
-              <UBadge
-                v-if="currentWeek"
-                :color="getWeekStatusColor(currentWeek.status)"
-                variant="soft"
-                size="lg"
-              >
-                {{ currentWeek.status }}
-              </UBadge>
-              <UBadge
-                v-if="currentWeek && currentWeek.status === 'draft'"
-                :color="(isWeekComplete(selectedWeekIndex) ? 'success' : 'warning') as any"
-                variant="soft"
-                size="lg"
-              >
-                {{ slots.length }}/{{ requiredSlots }} slots
-              </UBadge>
             </div>
           </div>
         </UCard>
@@ -579,7 +743,7 @@ function formatTime(time: string): string {
 
             <div class="flex justify-center">
               <UCalendar 
-                v-model="selectedDate"
+                v-model="selectedDate as any"
                 :min="minDate"
                 class="w-full"
               >
@@ -587,13 +751,13 @@ function formatTime(time: string): string {
                   <div 
                     class="relative flex h-full w-full items-center justify-center"
                     :class="{ 
-                      'opacity-40 cursor-not-allowed pointer-events-none': isPastDate(day)
+                      'opacity-40 cursor-not-allowed pointer-events-none': isPastDate(day as DateValue)
                     }"
                   >
                     {{ day.day }}
                     <!-- Available day indicator -->
                     <span 
-                      v-if="isDateAvailable(day)"
+                      v-if="isDateAvailable(day as DateValue) && !isPastDate(day as DateValue)"
                       class="absolute bottom-0.5 left-1/2 h-1.5 w-1.5 -translate-x-1/2 rounded-full bg-green-500"
                     />
                   </div>
@@ -638,66 +802,85 @@ function formatTime(time: string): string {
               <div
                 v-for="(slot, index) in availableSlotsForSelectedDate"
                 :key="index"
-                class="flex items-center justify-between rounded-xl border-2 p-4 transition-all"
+                class="group relative flex items-center justify-between rounded-xl border-2 p-4 transition-all duration-200 shadow-sm"
                 :class="[
-                  isSlotAlreadyTaken(selectedDate, slot.start_time, slot.end_time)
+                  isSlotAlreadyTaken(selectedDate as DateValue, slot.start_time, slot.end_time)
                     ? 'border-slate-200 bg-slate-100 opacity-50 cursor-not-allowed'
                     : selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time
-                    ? 'border-primary-500 bg-primary-50 cursor-pointer'
-                    : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50 cursor-pointer'
+                    ? 'border-primary-500 bg-primary-50 shadow-md scale-[1.02] ring-2 ring-primary-200'
+                    : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50 hover:shadow-md hover:scale-[1.01] cursor-pointer'
                 ]"
-                @click="!isSlotAlreadyTaken(selectedDate, slot.start_time, slot.end_time) && selectSlot(slot)"
+                @click="!isSlotAlreadyTaken(selectedDate as DateValue, slot.start_time, slot.end_time) && selectSlot(slot)"
               >
-                <div class="flex items-center gap-4">
-                  <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-green-100">
-                    <UIcon name="i-heroicons-clock" class="h-7 w-7 text-green-600" />
+                <div class="flex items-center gap-4 flex-1">
+                  <!-- Time Icon with Duration -->
+                  <div class="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-green-100 to-green-50 group-hover:from-green-200 group-hover:to-green-100 transition-all duration-200">
+                    <UIcon name="i-heroicons-clock" class="h-8 w-8 text-green-600" />
+                    <div class="absolute -bottom-1 -right-1 rounded-full bg-white border-2 border-green-500 px-1.5 py-0.5">
+                      <span class="text-[10px] font-bold text-green-600">
+                        {{ getSlotDuration(slot.start_time, slot.end_time) }}m
+                      </span>
+                    </div>
                   </div>
-                  <div>
-                    <p class="text-lg font-semibold text-slate-900">
-                      {{ formatTime(slot.start_time) }} - {{ formatTime(slot.end_time) }}
-                    </p>
-                    <p class="text-sm text-slate-500">
-                      {{ getSelectedWeekday() }}
-                    </p>
+                  
+                  <!-- Slot Info -->
+                  <div class="flex-1">
+                    <div class="flex items-baseline gap-2">
+                      <p class="text-xl font-bold text-slate-900">
+                        {{ formatTime(slot.start_time) }}
+                      </p>
+                      <UIcon name="i-heroicons-arrow-right" class="h-4 w-4 text-slate-400" />
+                      <p class="text-xl font-bold text-slate-900">
+                        {{ formatTime(slot.end_time) }}
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-2 mt-1">
+                      <UIcon name="i-heroicons-calendar" class="h-4 w-4 text-slate-400" />
+                      <p class="text-sm text-slate-500">
+                        {{ getSelectedWeekday() }}
+                      </p>
+                    </div>
                     <p 
-                      v-if="isSlotAlreadyTaken(selectedDate, slot.start_time, slot.end_time)"
-                      class="text-xs text-amber-600 font-medium mt-1"
+                      v-if="isSlotAlreadyTaken(selectedDate as DateValue, slot.start_time, slot.end_time)"
+                      class="text-xs text-amber-600 font-medium mt-1.5 flex items-center gap-1"
                     >
-                      Already scheduled in Week {{ getSlotWeekNumber(selectedDate, slot.start_time, slot.end_time) }}
+                      <UIcon name="i-heroicons-exclamation-triangle" class="h-3 w-3" />
+                      Already scheduled in Week {{ getSlotWeekNumber(selectedDate as DateValue, slot.start_time, slot.end_time) }}
                     </p>
                   </div>
                 </div>
 
-                <!-- Selection indicator -->
+                <!-- Enhanced Selection indicator -->
                 <div
-                  class="flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all"
+                  class="flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-200 shadow-sm"
                   :class="[
                     selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time
-                      ? 'border-primary-500 bg-primary-500'
-                      : 'border-slate-300'
+                      ? 'border-primary-500 bg-primary-500 scale-110 ring-2 ring-primary-200'
+                      : 'border-slate-300 bg-white group-hover:border-primary-300'
                   ]"
                 >
                   <UIcon
                     v-if="selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time"
                     name="i-heroicons-check"
-                    class="h-4 w-4 text-white"
+                    class="h-5 w-5 text-white animate-in zoom-in duration-200"
                   />
                 </div>
               </div>
 
-              <!-- Add Slot Button -->
+              <!-- Enhanced Add Slot Button -->
               <div v-if="currentWeek?.status === 'draft'" class="pt-4">
                 <UButton
-                  v-if="selectedSlot && slots.length < requiredSlots && !isSlotAlreadyTaken(selectedDate, selectedSlot.start_time, selectedSlot.end_time)"
+                  v-if="selectedSlot && slots.length < requiredSlots && !isSlotAlreadyTaken(selectedDate as DateValue, selectedSlot.start_time, selectedSlot.end_time)"
                   color="success"
                   variant="solid"
                   size="xl"
                   block
                   :disabled="!selectedSlot || isSaving || slots.length >= requiredSlots"
                   :loading="isSaving"
+                  class="shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
                   @click="handleAddSlot"
                 >
-                  <UIcon name="i-heroicons-plus" class="mr-2 h-5 w-5" />
+                  <UIcon name="i-heroicons-plus-circle" class="mr-2 h-5 w-5" />
                   Schedule This Slot
                 </UButton>
                 <UAlert
@@ -710,7 +893,7 @@ function formatTime(time: string): string {
                   class="mt-4"
                 />
                 <UAlert
-                  v-else-if="selectedSlot && isSlotAlreadyTaken(selectedDate, selectedSlot.start_time, selectedSlot.end_time)"
+                  v-else-if="selectedSlot && isSlotAlreadyTaken(selectedDate as DateValue, selectedSlot.start_time, selectedSlot.end_time)"
                   color="warning"
                   variant="soft"
                   icon="i-heroicons-exclamation-triangle"
@@ -756,34 +939,44 @@ function formatTime(time: string): string {
             <p class="mt-2 text-slate-600">Select a date and time slot above to schedule your sessions.</p>
           </div>
 
-          <!-- Slots List -->
-          <div v-else class="space-y-4">
-            <div
-              v-for="slot in slots"
-              :key="slot.id"
-              class="flex items-center justify-between rounded-xl border border-slate-200 bg-gradient-to-r from-slate-50 to-white p-4"
+          <!-- Enhanced Slots List -->
+          <div v-else class="space-y-3">
+            <TransitionGroup
+              name="slot-list"
+              tag="div"
+              class="space-y-3"
             >
-              <div class="flex items-center gap-4">
-                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100">
-                  <UIcon name="i-heroicons-clock" class="h-6 w-6 text-primary-600" />
-                </div>
-                <div>
-                  <p class="font-semibold text-slate-900">{{ formatSlotTime(slot) }}</p>
-                  <p v-if="slot.note" class="text-sm text-slate-500">{{ slot.note }}</p>
-                </div>
-              </div>
-              <UButton
-                v-if="currentWeek?.status === 'draft'"
-                variant="outline"
-                color="error"
-                size="xl"
-                :loading="deletingSlotId === slot.id"
-                :disabled="isDeleting"
-                @click="handleDeleteSlot(slot.id)"
+              <div
+                v-for="slot in slots"
+                :key="slot.id"
+                class="group flex items-center justify-between rounded-xl border-2 border-slate-200 bg-gradient-to-r from-white to-slate-50 p-4 shadow-sm hover:shadow-md transition-all duration-200 hover:border-primary-200"
               >
-                <UIcon name="i-heroicons-trash" class="h-5 w-5" />
-              </UButton>
-            </div>
+                <div class="flex items-center gap-4 flex-1">
+                  <div class="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 group-hover:from-primary-200 group-hover:to-primary-100 transition-all duration-200">
+                    <UIcon name="i-heroicons-clock" class="h-7 w-7 text-primary-600" />
+                    <div class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-500 text-white">
+                      <span class="text-[10px] font-bold">{{ slots.indexOf(slot) + 1 }}</span>
+                    </div>
+                  </div>
+                  <div class="flex-1">
+                    <p class="text-lg font-bold text-slate-900">{{ formatSlotTime(slot) }}</p>
+                    <p v-if="slot.note" class="text-sm text-slate-500 mt-0.5">{{ slot.note }}</p>
+                  </div>
+                </div>
+                <UButton
+                  v-if="currentWeek?.status === 'draft'"
+                  variant="outline"
+                  color="error"
+                  size="xl"
+                  class="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                  :loading="deletingSlotId === slot.id"
+                  :disabled="isDeleting"
+                  @click="handleDeleteSlot(slot.id)"
+                >
+                  <UIcon name="i-heroicons-trash" class="h-5 w-5" />
+                </UButton>
+              </div>
+            </TransitionGroup>
           </div>
 
           <!-- Submit Button -->
@@ -808,6 +1001,7 @@ function formatTime(time: string): string {
                 color="success"
                 variant="solid"
                 size="xl"
+
                 :disabled="!canSubmit"
                 :loading="isSubmitting"
                 class="ml-4"
@@ -823,3 +1017,47 @@ function formatTime(time: string): string {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Slot List Animations */
+.slot-list-enter-active,
+.slot-list-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slot-list-enter-from {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+.slot-list-leave-to {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.slot-list-move {
+  transition: transform 0.3s ease;
+}
+
+/* Smooth transitions for week selector */
+@keyframes pulse-ring {
+  0% {
+    transform: scale(0.95);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.1);
+    opacity: 0;
+  }
+}
+
+/* Calendar date hover effects */
+.calendar-day-hover {
+  transition: all 0.2s ease;
+}
+
+/* Slot card hover effects */
+.slot-card-hover {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+</style>
