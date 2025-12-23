@@ -11,6 +11,7 @@ useSeoMeta({
 
 const { profile, fetchProfile } = useProfile()
 const { getItems } = useDirectusItems()
+const { formatDateTime } = useTimezone()
 
 interface TeacherSession {
   id: string
@@ -55,6 +56,13 @@ const { execute: throttledApprove, isLoading: isApproving } = useThrottledAction
   },
   { throttleMs: 1000 }
 )
+
+// Watch for profile changes (e.g., timezone updates) and refresh sessions
+watch(() => profile.value?.timezone, async () => {
+  if (profile.value?.role === 'teacher') {
+    await loadSessions()
+  }
+})
 
 onMounted(async () => {
   // Sync session statuses first (auto-complete expired sessions)
@@ -158,15 +166,7 @@ function approvePostpone(sessionId: string) {
   throttledApprove()
 }
 
-function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  })
-}
+// formatDateTime is now from useTimezone composable
 
 function getStatusColor(status: string): string {
   const colors: Record<string, string> = {

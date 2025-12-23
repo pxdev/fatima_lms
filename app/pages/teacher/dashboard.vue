@@ -72,6 +72,13 @@ function isDateWithSession(date: CalendarDate): boolean {
   return allSessions.value.some(session => session.start_at.split('T')[0] === dateStr)
 }
 
+// Watch for profile changes (e.g., timezone updates) and refresh data
+watch(() => profile.value?.timezone, async () => {
+  if (profile.value?.role === 'teacher') {
+    await loadData()
+  }
+})
+
 onMounted(async () => {
   // Sync session statuses first (auto-complete expired sessions)
   try {
@@ -154,21 +161,14 @@ async function loadData() {
   }
 }
 
+const { formatDateTime: formatDateTimeTz, formatTime: formatTimeTz } = useTimezone()
+
 function formatDateTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  })
+  return formatDateTimeTz(dateStr)
 }
 
 function formatTime(dateStr: string): string {
-  return new Date(dateStr).toLocaleString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit'
-  })
+  return formatTimeTz(dateStr)
 }
 
 function formatSelectedDate(date: CalendarDate): string {

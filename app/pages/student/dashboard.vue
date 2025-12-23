@@ -103,15 +103,10 @@ async function loadUpcomingSessions() {
   }
 }
 
+const { formatDateTime: formatDateTimeTz } = useTimezone()
+
 function formatDateTime(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  })
+  return formatDateTimeTz(dateStr)
 }
 
 function canJoinSession(session: UpcomingSession): boolean {
@@ -229,7 +224,7 @@ function getPendingSubscriptions() {
                   <p class="font-medium text-slate-900">
                     {{ session.subscription?.course?.label || 'Session' }}
                   </p>
-                  <p class="text-sm text-slate-600">{{ formatDateTime(session.start_at) }}</p>
+                  <p class="text-sm text-slate-600">{{ formatDateTimeDisplay(session.start_at) }}</p>
                   <p v-if="session.subscription?.teacher?.display_name" class="text-xs text-slate-500">
                     with {{ session.subscription.teacher.display_name }}
                   </p>

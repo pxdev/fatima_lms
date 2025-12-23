@@ -60,6 +60,13 @@ const { execute: throttledApprove, isLoading: isApproving } = useThrottledAction
   { throttleMs: 1000 }
 )
 
+// Watch for profile changes (e.g., timezone updates) and refresh data
+watch(() => profile.value?.timezone, async () => {
+  if (profile.value?.role === 'teacher') {
+    await loadData()
+  }
+})
+
 onMounted(async () => {
   await fetchProfile()
   
@@ -143,27 +150,10 @@ function approveWeek(weekId: string) {
   throttledApprove()
 }
 
-function formatSlotTime(slot: any): string {
-  const start = new Date(slot.start_at)
-  const end = new Date(slot.end_at)
-  
-  const dateStr = start.toLocaleDateString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric'
-  })
-  
-  const startTime = start.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit'
-  })
-  
-  const endTime = end.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit'
-  })
-  
-  return `${dateStr}, ${startTime} - ${endTime}`
+const { formatSlotTime } = useTimezone()
+
+function formatSlotTimeDisplay(slot: any): string {
+  return formatSlotTime(slot.start_at, slot.end_at)
 }
 
 function getWeekStatusColor(status: string): string {
@@ -260,7 +250,7 @@ function getWeekStatusColor(status: string): string {
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-3">
                   <h3 class="font-semibold text-slate-900">Week {{ week.week_index }}</h3>
-                  <UBadge :color="getWeekStatusColor(week.status)" variant="soft" size="sm">
+                  <UBadge :color="getWeekStatusColor(week.status) as any" variant="soft" size="sm">
                     {{ week.status }}
                   </UBadge>
                 </div>
@@ -285,7 +275,7 @@ function getWeekStatusColor(status: string): string {
                 class="flex items-center gap-3 rounded-lg bg-slate-50 p-3"
               >
                 <UIcon name="i-heroicons-clock" class="h-5 w-5 text-slate-400" />
-                <span class="text-slate-700">{{ formatSlotTime(slot) }}</span>
+                <span class="text-slate-700">{{ formatSlotTimeDisplay(slot) }}</span>
                 <span v-if="slot.note" class="text-sm text-slate-500">
                   ({{ slot.note }})
                 </span>

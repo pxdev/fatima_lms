@@ -18,6 +18,10 @@ const { currentSubscription, fetchSubscription } = useSubscriptions()
 const { weeks, currentWeek, fetchWeeks, getOrCreateWeek, submitWeek, getStatusColor: getWeekStatusColor } = useWeeks()
 const { slots, fetchSlots, createSlot, deleteSlot, formatSlotTime, isLoading: slotsLoading } = useWeekSlots()
 const { packages, fetchPackages, getPackageById } = usePackages()
+const { getItems, getItemById } = useDirectusItems()
+
+// Store all slots from all weeks to check for duplicates
+const allSlots = ref<any[]>([])
 const { 
   rules: teacherAvailability, 
   fetchRules: fetchTeacherAvailability, 
@@ -35,6 +39,17 @@ const isPageLoading = ref(true)
 // Calendar state
 const selectedDate = ref<CalendarDate>(today(getLocalTimeZone()))
 const selectedSlot = ref<{ start_time: string; end_time: string } | null>(null)
+
+// Minimum selectable date (today)
+const minDate = computed(() => today(getLocalTimeZone()))
+
+// Check if a date is in the past
+function isPastDate(date: CalendarDate): boolean {
+  const dateObj = new Date(date.year, date.month - 1, date.day)
+  const todayObj = new Date()
+  todayObj.setHours(0, 0, 0, 0)
+  return dateObj < todayObj
+}
 
 // Throttled actions
 const { execute: throttledAddSlot, isLoading: isSaving } = useThrottledAction(
@@ -65,12 +80,18 @@ const canSubmit = computed(() =>
   slots.value.length >= requiredSlots.value
 )
 
-// Get available slots for the selected date
+// Get available slots for the selected date (no timezone conversion - show as teacher set them)
 const availableSlotsForSelectedDate = computed(() => {
   if (!selectedDate.value) return []
   
   const date = new Date(selectedDate.value.year, selectedDate.value.month - 1, selectedDate.value.day)
-  return getAvailableSlotsForDate(date)
+  const slots = getAvailableSlotsForDate(date)
+  
+  // Return slots exactly as teacher set them (no conversion)
+  return slots.map(slot => ({
+    start_time: slot.start_time,
+    end_time: slot.end_time
+  }))
 })
 
 // Check if teacher has availability set
@@ -79,9 +100,121 @@ const hasTeacherAvailability = computed(() => {
 })
 
 // Check if a date has teacher availability (for calendar markers)
+// Also excludes past dates
 function isDateAvailable(date: CalendarDate): boolean {
-  const weekday = new Date(date.year, date.month - 1, date.day).getDay()
+  // Don't show badge for past dates
+  const dateObj = new Date(date.year, date.month - 1, date.day)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  if (dateObj < today) {
+    return false
+  }
+  
+  const weekday = dateObj.getDay()
   return hasAvailabilityOnWeekday(weekday)
+}
+
+// Check if a slot (date + time) already exists in any week
+// startTime and endTime should be in HH:mm format (teacher's original time)
+function isSlotAlreadyTaken(date: CalendarDate, startTime: string, endTime: string): boolean {
+  if (!date || !startTime || !endTime) return false
+  
+  const dateStr = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
+  const [startHours, startMinutes] = startTime.split(':').map(Number)
+  const [endHours, endMinutes] = endTime.split(':').map(Number)
+  
+  // Create date objects for comparison
+  const startDate = new Date(date.year, date.month - 1, date.day, startHours, startMinutes)
+  const endDate = new Date(date.year, date.month - 1, date.day, endHours, endMinutes)
+  
+  // Check if any existing slot matches this date and time
+  return allSlots.value.some(slot => {
+    // Compare dates (ignore timezone, just check if same day and time)
+    const slotStart = new Date(slot.start_at)
+    const slotEnd = new Date(slot.end_at)
+    
+    // Check if same date
+    const sameDate = slotStart.getFullYear() === startDate.getFullYear() &&
+                     slotStart.getMonth() === startDate.getMonth() &&
+                     slotStart.getDate() === startDate.getDate()
+    
+    if (!sameDate) return false
+    
+    // Check if same time (compare hours and minutes)
+    const sameStartTime = slotStart.getHours() === startDate.getHours() &&
+                         slotStart.getMinutes() === startDate.getMinutes()
+    const sameEndTime = slotEnd.getHours() === endDate.getHours() &&
+                       slotEnd.getMinutes() === endDate.getMinutes()
+    
+    return sameStartTime && sameEndTime
+  })
+}
+
+// Get which week a slot is already scheduled in
+function getSlotWeekNumber(date: CalendarDate, startTime: string, endTime: string): number | null {
+  if (!date || !startTime || !endTime) return null
+  
+  const [startHours, startMinutes] = startTime.split(':').map(Number)
+  const [endHours, endMinutes] = endTime.split(':').map(Number)
+  
+  const startDate = new Date(date.year, date.month - 1, date.day, startHours, startMinutes)
+  const endDate = new Date(date.year, date.month - 1, date.day, endHours, endMinutes)
+  
+  // Find the matching slot
+  const matchingSlot = allSlots.value.find(slot => {
+    const slotStart = new Date(slot.start_at)
+    const slotEnd = new Date(slot.end_at)
+    
+    const sameDate = slotStart.getFullYear() === startDate.getFullYear() &&
+                     slotStart.getMonth() === startDate.getMonth() &&
+                     slotStart.getDate() === startDate.getDate()
+    
+    if (!sameDate) return false
+    
+    const sameStartTime = slotStart.getHours() === startDate.getHours() &&
+                         slotStart.getMinutes() === startDate.getMinutes()
+    const sameEndTime = slotEnd.getHours() === endDate.getHours() &&
+                       slotEnd.getMinutes() === endDate.getMinutes()
+    
+    return sameStartTime && sameEndTime
+  })
+  
+  if (!matchingSlot) return null
+  
+  // Find which week this slot belongs to
+  const week = weeks.value.find(w => w.id === matchingSlot.week)
+  return week ? week.week_index : null
+}
+
+// Fetch all slots from all weeks for duplicate checking
+async function fetchAllSlots() {
+  if (!weeks.value || weeks.value.length === 0) {
+    allSlots.value = []
+    return
+  }
+  
+  try {
+    const weekIds = weeks.value.map(w => w.id)
+    if (weekIds.length === 0) {
+      allSlots.value = []
+      return
+    }
+    
+    const slotsData = await getItems({
+      collection: 'week_slots',
+      params: {
+        filter: {
+          week: { _in: weekIds }
+        },
+        fields: ['id', 'week', 'start_at', 'end_at']
+      }
+    })
+    
+    allSlots.value = slotsData || []
+  } catch (err) {
+    console.error('Failed to fetch all slots:', err)
+    allSlots.value = []
+  }
 }
 
 // Format the selected date for display
@@ -103,6 +236,14 @@ function getSelectedWeekday(): string {
   return getWeekdayLabel(date.getDay())
 }
 
+// Watch selectedDate to prevent selecting past dates
+watch(selectedDate, (newDate) => {
+  if (newDate && isPastDate(newDate)) {
+    // Reset to today if user tries to select a past date
+    selectedDate.value = today(getLocalTimeZone())
+  }
+})
+
 onMounted(async () => {
   isPageLoading.value = true
   
@@ -120,6 +261,8 @@ onMounted(async () => {
     // Load weeks and select first draft week or create new one
     await fetchWeeks(subscriptionId.value)
     await loadWeek(selectedWeekIndex.value)
+    // Fetch all slots for duplicate checking
+    await fetchAllSlots()
   } finally {
     isPageLoading.value = false
   }
@@ -130,6 +273,8 @@ async function loadWeek(weekIndex: number) {
   const week = await getOrCreateWeek(subscriptionId.value, weekIndex)
   if (week) {
     await fetchSlots(week.id)
+    // Refresh all slots for duplicate checking
+    await fetchAllSlots()
   }
 }
 
@@ -142,28 +287,65 @@ async function doAddSlot() {
 
   error.value = null
 
+  // Check if already reached the required number of slots
+  if (slots.value.length >= requiredSlots.value) {
+    error.value = `You can only add ${requiredSlots.value} session${requiredSlots.value === 1 ? '' : 's'} per week. Please remove a slot first if you want to change it.`
+    return
+  }
+
   try {
+    // Use the selected slot times directly (no conversion)
+    const startTime = selectedSlot.value.start_time
+    const endTime = selectedSlot.value.end_time
+    
     // Format date as YYYY-MM-DD
     const dateStr = `${selectedDate.value.year}-${String(selectedDate.value.month).padStart(2, '0')}-${String(selectedDate.value.day).padStart(2, '0')}`
     
-    // Store datetime without timezone conversion
-    const startAt = `${dateStr}T${selectedSlot.value.start_time}:00`
-    const endAt = `${dateStr}T${selectedSlot.value.end_time}:00`
+    // Create datetime strings using the times directly
+    // Store the time exactly as teacher set it, treating it as UTC
+    // This way, 9:00 PM will always display as 9:00 PM regardless of browser timezone
+    const [startHours, startMinutes] = startTime.split(':').map(Number)
+    const [endHours, endMinutes] = endTime.split(':').map(Number)
+    
+    // Create ISO string treating the time as UTC (add 'Z' for UTC)
+    const startDateTimeStr = `${dateStr}T${String(startHours).padStart(2, '0')}:${String(startMinutes).padStart(2, '0')}:00Z`
+    const endDateTimeStr = `${dateStr}T${String(endHours).padStart(2, '0')}:${String(endMinutes).padStart(2, '0')}:00Z`
+    
+    // Use these directly as ISO strings (they're already in UTC format)
+    const startAt = startDateTimeStr
+    const endAt = endDateTimeStr
 
-    await createSlot({
+    // Check if slot already exists before creating
+    if (isSlotAlreadyTaken(selectedDate.value, startTime, endTime)) {
+      error.value = 'This time slot is already scheduled in another week'
+      return
+    }
+
+    const created = await createSlot({
       week: currentWeek.value.id,
       start_at: startAt,
       end_at: endAt,
       note: null
     })
 
+    if (!created) {
+      error.value = 'Failed to create slot'
+      return
+    }
+
+    // Refresh all slots after creating
+    await fetchAllSlots()
+    await fetchSlots(currentWeek.value.id) // Refresh current week's slots
+    
     selectedSlot.value = null
     success.value = 'Session scheduled successfully!'
     setTimeout(() => success.value = null, 3000)
   } catch (err: any) {
-    error.value = err?.message || 'Failed to schedule session'
+    console.error('Error creating slot:', err)
+    error.value = err?.data?.statusMessage || err?.message || 'Failed to schedule session'
   }
 }
+
 
 function handleAddSlot() {
   throttledAddSlot()
@@ -175,6 +357,8 @@ async function handleDeleteSlot(slotId: string) {
   deletingSlotId.value = slotId
   try {
     await deleteSlot(slotId)
+    // Refresh all slots after deletion
+    await fetchAllSlots()
   } finally {
     deletingSlotId.value = null
     isDeleting.value = false
@@ -204,6 +388,8 @@ function handleSubmitWeek() {
 }
 
 // Format time for display (HH:mm or HH:mm:ss -> h:mm AM/PM)
+// Note: This is for formatting time strings from availability rules, not ISO dates
+// For ISO dates, use formatTimeTz directly
 function formatTime(time: string): string {
   const [hours, minutes] = time.split(':').map(Number)
   const period = hours >= 12 ? 'PM' : 'AM'
@@ -342,10 +528,16 @@ function formatTime(time: string): string {
             <div class="flex justify-center">
               <UCalendar 
                 v-model="selectedDate"
+                :min="minDate"
                 class="w-full"
               >
                 <template #day="{ day }">
-                  <div class="relative flex h-full w-full items-center justify-center">
+                  <div 
+                    class="relative flex h-full w-full items-center justify-center"
+                    :class="{ 
+                      'opacity-40 cursor-not-allowed pointer-events-none': isPastDate(day)
+                    }"
+                  >
                     {{ day.day }}
                     <!-- Available day indicator -->
                     <span 
@@ -394,13 +586,15 @@ function formatTime(time: string): string {
               <div
                 v-for="(slot, index) in availableSlotsForSelectedDate"
                 :key="index"
-                class="flex items-center justify-between rounded-xl border-2 p-4 transition-all cursor-pointer"
+                class="flex items-center justify-between rounded-xl border-2 p-4 transition-all"
                 :class="[
-                  selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time
-                    ? 'border-primary-500 bg-primary-50'
-                    : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50'
+                  isSlotAlreadyTaken(selectedDate, slot.start_time, slot.end_time)
+                    ? 'border-slate-200 bg-slate-100 opacity-50 cursor-not-allowed'
+                    : selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time
+                    ? 'border-primary-500 bg-primary-50 cursor-pointer'
+                    : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50 cursor-pointer'
                 ]"
-                @click="selectSlot(slot)"
+                @click="!isSlotAlreadyTaken(selectedDate, slot.start_time, slot.end_time) && selectSlot(slot)"
               >
                 <div class="flex items-center gap-4">
                   <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-green-100">
@@ -412,6 +606,12 @@ function formatTime(time: string): string {
                     </p>
                     <p class="text-sm text-slate-500">
                       {{ getSelectedWeekday() }}
+                    </p>
+                    <p 
+                      v-if="isSlotAlreadyTaken(selectedDate, slot.start_time, slot.end_time)"
+                      class="text-xs text-amber-600 font-medium mt-1"
+                    >
+                      Already scheduled in Week {{ getSlotWeekNumber(selectedDate, slot.start_time, slot.end_time) }}
                     </p>
                   </div>
                 </div>
@@ -436,17 +636,35 @@ function formatTime(time: string): string {
               <!-- Add Slot Button -->
               <div v-if="currentWeek?.status === 'draft'" class="pt-4">
                 <UButton
+                  v-if="selectedSlot && slots.length < requiredSlots && !isSlotAlreadyTaken(selectedDate, selectedSlot.start_time, selectedSlot.end_time)"
                   color="success"
                   variant="solid"
                   size="xl"
                   block
-                  :disabled="!selectedSlot || isSaving"
+                  :disabled="!selectedSlot || isSaving || slots.length >= requiredSlots"
                   :loading="isSaving"
                   @click="handleAddSlot"
                 >
                   <UIcon name="i-heroicons-plus" class="mr-2 h-5 w-5" />
                   Schedule This Slot
                 </UButton>
+                <UAlert
+                  v-else-if="selectedSlot && slots.length >= requiredSlots"
+                  color="warning"
+                  variant="soft"
+                  icon="i-heroicons-exclamation-triangle"
+                  :title="`You can only add ${requiredSlots} session${requiredSlots === 1 ? '' : 's'} per week`"
+                  description="Please remove a slot first if you want to change it."
+                  class="mt-4"
+                />
+                <UAlert
+                  v-else-if="selectedSlot && isSlotAlreadyTaken(selectedDate, selectedSlot.start_time, selectedSlot.end_time)"
+                  color="warning"
+                  variant="soft"
+                  icon="i-heroicons-exclamation-triangle"
+                  title="This time slot is already scheduled in another week"
+                  class="mt-4"
+                />
               </div>
             </div>
           </UCard>

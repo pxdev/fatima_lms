@@ -32,9 +32,11 @@ const crumbs = computed(() => [
   { label: article.value?.title ?? 'Loading...' }
 ])
 
+const { formatDateOnly } = useTimezone()
+
 const formattedDate = computed(() => {
   if (!article.value?.date_created) return ''
-  return new Date(article.value.date_created).toLocaleDateString('en-US', {
+  return formatDateOnly(article.value.date_created, {
     year: 'numeric',
     month: 'long',
     day: 'numeric'

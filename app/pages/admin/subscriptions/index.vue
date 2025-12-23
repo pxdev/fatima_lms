@@ -140,8 +140,10 @@ async function assignTeacher(subscriptionId: string) {
   }
 }
 
+const { formatDateOnly } = useTimezone()
+
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-US', {
+  return formatDateOnly(dateStr, {
     month: 'short',
     day: 'numeric',
     year: 'numeric'

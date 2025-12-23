@@ -14,6 +14,7 @@ useSeoMeta({
 
 const { profile, fetchProfile } = useProfile()
 const { getItemById, getItems, updateItem } = useDirectusItems()
+const { formatDateOnly } = useTimezone()
 
 interface SubscriptionDetail {
   id: string
@@ -173,7 +174,7 @@ async function updateStatus(newStatus: string) {
 
 function formatDate(dateStr: string | null): string {
   if (!dateStr) return '-'
-  return new Date(dateStr).toLocaleDateString('en-US', {
+  return formatDateOnly(dateStr, {
     month: 'short',
     day: 'numeric',
     year: 'numeric'

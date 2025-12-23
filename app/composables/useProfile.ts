@@ -31,7 +31,8 @@ export function useProfile() {
   const { getItems, updateItem } = useDirectusItems()
   const user = useDirectusUser()
 
-  const profile = ref<Profile | null>(null)
+  // Use useState to create a global shared state for profile
+  const profile = useState<Profile | null>('user-profile', () => null)
   const isLoading = ref(false)
   const error = ref<string | null>(null)
 

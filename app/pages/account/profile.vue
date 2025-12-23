@@ -105,6 +105,8 @@ async function doSubmit() {
 
     if (updated) {
       successMessage.value = 'Profile updated successfully!'
+      // Refetch profile to ensure all pages get the updated timezone
+      await fetchProfile()
     }
   } catch (err: any) {
     console.error('Error saving profile:', err)

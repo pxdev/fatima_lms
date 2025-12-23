@@ -110,16 +110,7 @@ const pastSessions = computed(() => {
     .sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime())
 })
 
-function formatDateTime(dateStr: string): string {
-  const date = new Date(dateStr)
-  return date.toLocaleString('en-US', {
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit'
-  })
-}
+const { formatDateTime } = useTimezone()
 
 function canJoinSession(session: SessionWithDetails): boolean {
   if (!session.zoom_join_url) return false
