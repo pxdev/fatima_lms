@@ -3,6 +3,8 @@
  * Handles slot CRUD for scheduling
  */
 
+import { format, parseISO } from 'date-fns'
+
 interface WeekSlot {
   id: string
   week: string
@@ -154,8 +156,9 @@ export function useWeekSlots() {
     
     if (!startMatch || !endMatch) {
       // Fallback to Date parsing if format is unexpected
-      const startDate = new Date(slot.start_at)
-      const endDate = new Date(slot.end_at)
+      // parseISO returns a native Date object, so we can use native UTC methods
+      const startDate = parseISO(slot.start_at)
+      const endDate = parseISO(slot.end_at)
       const startHours = startDate.getUTCHours()
       const startMinutes = startDate.getUTCMinutes()
       const endHours = endDate.getUTCHours()
@@ -165,11 +168,7 @@ export function useWeekSlots() {
       const day = startDate.getUTCDate()
       
       const date = new Date(Date.UTC(year, month, day))
-      const dateStr = date.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      })
+      const dateStr = format(date, 'EEE, MMM d')
       
       const startPeriod = startHours >= 12 ? 'PM' : 'AM'
       const startDisplayHours = startHours % 12 || 12
@@ -193,11 +192,7 @@ export function useWeekSlots() {
     
     // Format date using the extracted components
     const date = new Date(parseInt(startYear, 10), parseInt(startMonth, 10) - 1, parseInt(startDay, 10))
-    const dateStr = date.toLocaleDateString('en-US', {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })
+    const dateStr = format(date, 'EEE, MMM d')
     
     // Format times using the extracted hours/minutes directly
     const startPeriod = startHours >= 12 ? 'PM' : 'AM'

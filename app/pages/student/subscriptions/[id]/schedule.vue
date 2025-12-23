@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
+import { format, isBefore, isSameDay, startOfDay, parseISO, getHours, getMinutes, getDay } from 'date-fns'
 
 definePageMeta({
   middleware: 'auth',
@@ -46,9 +47,8 @@ const minDate = computed(() => today(getLocalTimeZone()))
 // Check if a date is in the past
 function isPastDate(date: CalendarDate): boolean {
   const dateObj = new Date(date.year, date.month - 1, date.day)
-  const todayObj = new Date()
-  todayObj.setHours(0, 0, 0, 0)
-  return dateObj < todayObj
+  const todayObj = startOfDay(new Date())
+  return isBefore(dateObj, todayObj)
 }
 
 // Throttled actions
@@ -80,6 +80,39 @@ const canSubmit = computed(() =>
   slots.value.length >= requiredSlots.value
 )
 
+
+// Check if a week is complete (has all required slots)
+function isWeekComplete(weekIndex: number): boolean {
+  const week = weeks.value.find(w => w.week_index === weekIndex)
+  if (!week) return false
+  
+  // If week is already submitted/approved, it's complete
+  if (week.status !== 'draft') return true
+  
+  // For draft weeks, check if they have all required slots
+  // We need to check slots for that specific week
+  const weekSlots = allSlots.value.filter(slot => {
+    const slotWeek = weeks.value.find(w => w.id === slot.week)
+    return slotWeek?.week_index === weekIndex
+  })
+  
+  return weekSlots.length >= requiredSlots.value
+}
+
+// Get week status for display
+function getWeekStatus(weekIndex: number): 'complete' | 'incomplete' | 'submitted' | 'approved' {
+  const week = weeks.value.find(w => w.week_index === weekIndex)
+  if (!week) return 'incomplete'
+  
+  if (week.status === 'approved') return 'approved'
+  if (week.status === 'submitted') return 'submitted'
+  if (week.status === 'draft') {
+    return isWeekComplete(weekIndex) ? 'complete' : 'incomplete'
+  }
+  
+  return 'incomplete'
+}
+
 // Get available slots for the selected date (no timezone conversion - show as teacher set them)
 const availableSlotsForSelectedDate = computed(() => {
   if (!selectedDate.value) return []
@@ -104,13 +137,12 @@ const hasTeacherAvailability = computed(() => {
 function isDateAvailable(date: CalendarDate): boolean {
   // Don't show badge for past dates
   const dateObj = new Date(date.year, date.month - 1, date.day)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  if (dateObj < today) {
+  const today = startOfDay(new Date())
+  if (isBefore(dateObj, today)) {
     return false
   }
   
-  const weekday = dateObj.getDay()
+  const weekday = getDay(dateObj)
   return hasAvailabilityOnWeekday(weekday)
 }
 
@@ -130,21 +162,19 @@ function isSlotAlreadyTaken(date: CalendarDate, startTime: string, endTime: stri
   // Check if any existing slot matches this date and time
   return allSlots.value.some(slot => {
     // Compare dates (ignore timezone, just check if same day and time)
-    const slotStart = new Date(slot.start_at)
-    const slotEnd = new Date(slot.end_at)
+    const slotStart = parseISO(slot.start_at)
+    const slotEnd = parseISO(slot.end_at)
     
     // Check if same date
-    const sameDate = slotStart.getFullYear() === startDate.getFullYear() &&
-                     slotStart.getMonth() === startDate.getMonth() &&
-                     slotStart.getDate() === startDate.getDate()
+    const sameDate = isSameDay(slotStart, startDate)
     
     if (!sameDate) return false
     
     // Check if same time (compare hours and minutes)
-    const sameStartTime = slotStart.getHours() === startDate.getHours() &&
-                         slotStart.getMinutes() === startDate.getMinutes()
-    const sameEndTime = slotEnd.getHours() === endDate.getHours() &&
-                       slotEnd.getMinutes() === endDate.getMinutes()
+    const sameStartTime = getHours(slotStart) === getHours(startDate) &&
+                         getMinutes(slotStart) === getMinutes(startDate)
+    const sameEndTime = getHours(slotEnd) === getHours(endDate) &&
+                       getMinutes(slotEnd) === getMinutes(endDate)
     
     return sameStartTime && sameEndTime
   })
@@ -162,19 +192,17 @@ function getSlotWeekNumber(date: CalendarDate, startTime: string, endTime: strin
   
   // Find the matching slot
   const matchingSlot = allSlots.value.find(slot => {
-    const slotStart = new Date(slot.start_at)
-    const slotEnd = new Date(slot.end_at)
+    const slotStart = parseISO(slot.start_at)
+    const slotEnd = parseISO(slot.end_at)
     
-    const sameDate = slotStart.getFullYear() === startDate.getFullYear() &&
-                     slotStart.getMonth() === startDate.getMonth() &&
-                     slotStart.getDate() === startDate.getDate()
+    const sameDate = isSameDay(slotStart, startDate)
     
     if (!sameDate) return false
     
-    const sameStartTime = slotStart.getHours() === startDate.getHours() &&
-                         slotStart.getMinutes() === startDate.getMinutes()
-    const sameEndTime = slotEnd.getHours() === endDate.getHours() &&
-                       slotEnd.getMinutes() === endDate.getMinutes()
+    const sameStartTime = getHours(slotStart) === getHours(startDate) &&
+                         getMinutes(slotStart) === getMinutes(startDate)
+    const sameEndTime = getHours(slotEnd) === getHours(endDate) &&
+                       getMinutes(slotEnd) === getMinutes(endDate)
     
     return sameStartTime && sameEndTime
   })
@@ -221,19 +249,14 @@ async function fetchAllSlots() {
 function formatSelectedDate(): string {
   if (!selectedDate.value) return ''
   const date = new Date(selectedDate.value.year, selectedDate.value.month - 1, selectedDate.value.day)
-  return date.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  })
+  return format(date, 'EEEE, MMMM d, yyyy')
 }
 
 // Get weekday name for selected date
 function getSelectedWeekday(): string {
   if (!selectedDate.value) return ''
   const date = new Date(selectedDate.value.year, selectedDate.value.month - 1, selectedDate.value.day)
-  return getWeekdayLabel(date.getDay())
+  return getWeekdayLabel(getDay(date))
 }
 
 // Watch selectedDate to prevent selecting past dates
@@ -500,20 +523,49 @@ function formatTime(time: string): string {
                   size="xl"
                   :color="selectedWeekIndex === i ? 'primary' : 'neutral'"
                   :variant="selectedWeekIndex === i ? 'solid' : 'outline'"
+                  class="relative"
                   @click="loadWeek(i)"
                 >
-                  Week {{ i }}
+                  <span class="flex items-center gap-2">
+                    Week {{ i }}
+                    <!-- Status indicator -->
+                    <UIcon
+                      v-if="getWeekStatus(i) === 'complete'"
+                      name="i-heroicons-check-circle"
+                      class="h-4 w-4 text-green-500"
+                    />
+                    <UIcon
+                      v-else-if="getWeekStatus(i) === 'submitted'"
+                      name="i-heroicons-clock"
+                      class="h-4 w-4 text-amber-500"
+                    />
+                    <UIcon
+                      v-else-if="getWeekStatus(i) === 'approved'"
+                      name="i-heroicons-check-badge"
+                      class="h-4 w-4 text-blue-500"
+                    />
+                  </span>
                 </UButton>
               </div>
             </div>
-            <UBadge
-              v-if="currentWeek"
-              :color="getWeekStatusColor(currentWeek.status)"
-              variant="soft"
-              size="lg"
-            >
-              {{ currentWeek.status }}
-            </UBadge>
+            <div class="flex items-center gap-3">
+              <UBadge
+                v-if="currentWeek"
+                :color="getWeekStatusColor(currentWeek.status)"
+                variant="soft"
+                size="lg"
+              >
+                {{ currentWeek.status }}
+              </UBadge>
+              <UBadge
+                v-if="currentWeek && currentWeek.status === 'draft'"
+                :color="(isWeekComplete(selectedWeekIndex) ? 'success' : 'warning') as any"
+                variant="soft"
+                size="lg"
+              >
+                {{ slots.length }}/{{ requiredSlots }} slots
+              </UBadge>
+            </div>
           </div>
         </UCard>
 
@@ -737,21 +789,28 @@ function formatTime(time: string): string {
           <!-- Submit Button -->
           <template #footer v-if="currentWeek?.status === 'draft'">
             <div class="flex items-center justify-between">
-              <p class="text-sm text-slate-600">
-                <template v-if="slots.length < requiredSlots">
-                  Schedule {{ requiredSlots - slots.length }} more session(s) to submit
-                </template>
-                <template v-else>
-                  <UIcon name="i-heroicons-check-circle" class="inline h-4 w-4 text-green-500 mr-1" />
-                  All sessions scheduled! Ready to submit.
-                </template>
-              </p>
+              <div class="flex-1">
+                <p class="text-sm font-medium" :class="slots.length >= requiredSlots ? 'text-green-600' : 'text-amber-600'">
+                  <template v-if="slots.length < requiredSlots">
+                    <UIcon name="i-heroicons-exclamation-triangle" class="inline h-4 w-4 mr-1" />
+                    Schedule {{ requiredSlots - slots.length }} more session{{ requiredSlots - slots.length === 1 ? '' : 's' }} to submit this week
+                  </template>
+                  <template v-else>
+                    <UIcon name="i-heroicons-check-circle" class="inline h-4 w-4 text-green-500 mr-1" />
+                    All {{ requiredSlots }} session{{ requiredSlots === 1 ? '' : 's' }} scheduled! Ready to submit.
+                  </template>
+                </p>
+                <p v-if="slots.length < requiredSlots" class="text-xs text-slate-500 mt-1">
+                  You must schedule all {{ requiredSlots }} session{{ requiredSlots === 1 ? '' : 's' }} before submitting for review.
+                </p>
+              </div>
               <UButton
                 color="success"
                 variant="solid"
                 size="xl"
                 :disabled="!canSubmit"
                 :loading="isSubmitting"
+                class="ml-4"
                 @click="handleSubmitWeek"
               >
                 <UIcon name="i-heroicons-paper-airplane" class="mr-2 h-5 w-5" />

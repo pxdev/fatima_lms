@@ -6,6 +6,7 @@
  */
 
 import { createDirectus, rest, authentication, readItems, updateItem } from '@directus/sdk'
+import { format } from 'date-fns'
 
 interface Session {
   id: string
@@ -34,12 +35,7 @@ export default defineEventHandler(async (event) => {
   try {
     // Get current time in local format (without Z) to match how sessions are stored
     const now = new Date()
-    const localNow = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0') + 'T' +
-      String(now.getHours()).padStart(2, '0') + ':' +
-      String(now.getMinutes()).padStart(2, '0') + ':' +
-      String(now.getSeconds()).padStart(2, '0')
+    const localNow = format(now, "yyyy-MM-dd'T'HH:mm:ss")
 
     console.log('[Sync Session Status] Checking sessions ended before:', localNow)
 

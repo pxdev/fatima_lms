@@ -3,6 +3,8 @@
  * Handles week CRUD and submission
  */
 
+// Note: toISOString() is kept for API compatibility
+
 type WeekStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
 
 interface SubscriptionWeek {

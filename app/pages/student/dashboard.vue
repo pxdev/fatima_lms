@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { parseISO, differenceInMinutes } from 'date-fns'
+
 definePageMeta({
   middleware: 'auth',
   layout: 'dashboard'
@@ -113,8 +115,8 @@ function canJoinSession(session: UpcomingSession): boolean {
   if (!session.zoom_join_url) return false
   
   const now = new Date()
-  const start = new Date(session.start_at)
-  const diffMinutes = (start.getTime() - now.getTime()) / (1000 * 60)
+  const start = parseISO(session.start_at)
+  const diffMinutes = differenceInMinutes(start, now)
   
   // Can join 15 minutes before
   return diffMinutes <= 15
@@ -224,7 +226,7 @@ function getPendingSubscriptions() {
                   <p class="font-medium text-slate-900">
                     {{ session.subscription?.course?.label || 'Session' }}
                   </p>
-                  <p class="text-sm text-slate-600">{{ formatDateTimeDisplay(session.start_at) }}</p>
+                  <p class="text-sm text-slate-600">{{ formatDateTime(session.start_at) }}</p>
                   <p v-if="session.subscription?.teacher?.display_name" class="text-xs text-slate-500">
                     with {{ session.subscription.teacher.display_name }}
                   </p>

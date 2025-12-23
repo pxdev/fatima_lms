@@ -3,6 +3,8 @@
  * Handles session operations
  */
 
+import { format, parseISO, differenceInMinutes } from 'date-fns'
+
 type SessionStatus = 
   | 'scheduled'
   | 'in_progress'
@@ -79,7 +81,7 @@ export function useSessions() {
 
     try {
       const filterField = role === 'teacher' ? 'subscription.teacher' : 'subscription.student'
-      const now = new Date().toISOString()
+      const now = new Date().toISOString() // Keep ISO string for API filter
 
       const data = await getItems<Session>({
         collection: 'sessions',
@@ -143,7 +145,7 @@ export function useSessions() {
         item: {
           status: 'student_requested_postpone',
           postpone_reason: reason,
-          postpone_requested_at: new Date().toISOString()
+          postpone_requested_at: new Date().toISOString() // Keep ISO string for API
         }
       })
 
@@ -184,24 +186,12 @@ export function useSessions() {
    * Format session time
    */
   function formatSessionTime(session: Session): string {
-    const start = new Date(session.start_at)
-    const end = new Date(session.end_at)
+    const start = parseISO(session.start_at)
+    const end = parseISO(session.end_at)
     
-    const dateStr = start.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric'
-    })
-    
-    const startTime = start.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit'
-    })
-    
-    const endTime = end.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit'
-    })
+    const dateStr = format(start, 'EEEE, MMMM d')
+    const startTime = format(start, 'h:mm a')
+    const endTime = format(end, 'h:mm a')
     
     return `${dateStr}, ${startTime} - ${endTime}`
   }
@@ -214,8 +204,8 @@ export function useSessions() {
     if (!session.zoom_join_url) return false
     
     const now = new Date()
-    const start = new Date(session.start_at)
-    const diffMinutes = (start.getTime() - now.getTime()) / (1000 * 60)
+    const start = parseISO(session.start_at)
+    const diffMinutes = differenceInMinutes(start, now)
     
     // Can join 15 minutes before and until session ends
     return diffMinutes <= 15

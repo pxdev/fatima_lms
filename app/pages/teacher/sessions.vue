@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { parseISO, isAfter } from 'date-fns'
+
 definePageMeta({
   middleware: 'auth',
   layout: 'dashboard'
@@ -193,7 +195,7 @@ function startSession(session: TeacherSession) {
 function getUpcomingSessions() {
   const now = new Date()
   return sessions.value.filter(s => 
-    new Date(s.start_at) > now && 
+    isAfter(parseISO(s.start_at), now) && 
     ['scheduled'].includes(s.status)
   )
 }

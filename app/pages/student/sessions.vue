@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { parseISO, differenceInMinutes, isAfter, isBefore } from 'date-fns'
+
 definePageMeta({
   middleware: 'auth',
   layout: 'dashboard'
@@ -95,7 +97,7 @@ async function loadSessions() {
 const upcomingSessions = computed(() => {
   const now = new Date()
   return sessions.value.filter(s => 
-    new Date(s.start_at) > now && 
+    isAfter(parseISO(s.start_at), now) && 
     ['scheduled', 'in_progress'].includes(s.status)
   )
 })
@@ -104,10 +106,10 @@ const pastSessions = computed(() => {
   const now = new Date()
   return sessions.value
     .filter(s => 
-      new Date(s.start_at) <= now || 
+      isBefore(parseISO(s.start_at), now) || 
       !['scheduled', 'in_progress'].includes(s.status)
     )
-    .sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime())
+    .sort((a, b) => parseISO(b.start_at).valueOf() - parseISO(a.start_at).valueOf())
 })
 
 const { formatDateTime } = useTimezone()
@@ -116,8 +118,8 @@ function canJoinSession(session: SessionWithDetails): boolean {
   if (!session.zoom_join_url) return false
   
   const now = new Date()
-  const start = new Date(session.start_at)
-  const diffMinutes = (start.getTime() - now.getTime()) / (1000 * 60)
+  const start = parseISO(session.start_at)
+  const diffMinutes = differenceInMinutes(start, now)
   
   return diffMinutes <= 15
 }

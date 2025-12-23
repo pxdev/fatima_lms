@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { parseISO, isAfter, isBefore, differenceInMinutes } from 'date-fns'
+
 definePageMeta({
   middleware: 'auth',
   layout: 'dashboard'
@@ -76,7 +78,7 @@ function handlePostpone() {
 function getUpcomingSessions() {
   const now = new Date()
   return sessions.value.filter(s => 
-    new Date(s.start_at) > now && 
+    isAfter(parseISO(s.start_at), now) && 
     ['scheduled', 'in_progress'].includes(s.status)
   )
 }
@@ -84,14 +86,14 @@ function getUpcomingSessions() {
 function getPastSessions() {
   const now = new Date()
   return sessions.value.filter(s => 
-    new Date(s.start_at) <= now || 
+    isBefore(parseISO(s.start_at), now) || 
     !['scheduled', 'in_progress'].includes(s.status)
-  ).sort((a, b) => new Date(b.start_at).getTime() - new Date(a.start_at).getTime()) // Most recent first
+  ).sort((a, b) => parseISO(b.start_at).valueOf() - parseISO(a.start_at).valueOf()) // Most recent first
 }
 
 function isSessionMissed(session: any): boolean {
   const now = new Date()
-  return new Date(session.start_at) <= now && session.status === 'scheduled'
+  return isBefore(parseISO(session.start_at), now) && session.status === 'scheduled'
 }
 
 function getSessionIcon(session: any): string {

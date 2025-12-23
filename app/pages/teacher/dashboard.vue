@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { CalendarDate, today, getLocalTimeZone } from '@internationalized/date'
+import { format, parseISO, addDays, isAfter } from 'date-fns'
 
 definePageMeta({
   middleware: 'auth',
@@ -126,8 +127,7 @@ async function loadData() {
       const now = new Date().toISOString()
       
       // Fetch sessions for next 60 days for calendar view
-      const sixtyDaysLater = new Date()
-      sixtyDaysLater.setDate(sixtyDaysLater.getDate() + 60)
+      const sixtyDaysLater = addDays(new Date(), 60)
       
       const sessionsData = await getItems<UpcomingSession>({
         collection: 'sessions',
@@ -173,11 +173,7 @@ function formatTime(dateStr: string): string {
 
 function formatSelectedDate(date: CalendarDate): string {
   const d = new Date(date.year, date.month - 1, date.day)
-  return d.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric'
-  })
+  return format(d, 'EEEE, MMMM d')
 }
 
 function getStatusColor(status: string): string {
@@ -192,8 +188,8 @@ function getStatusColor(status: string): string {
 
 function canJoinNow(session: UpcomingSession): boolean {
   const now = new Date()
-  const start = new Date(session.start_at)
-  const diffMinutes = (start.getTime() - now.getTime()) / (1000 * 60)
+  const start = parseISO(session.start_at)
+  const diffMinutes = (start.valueOf() - now.valueOf()) / (1000 * 60)
   return diffMinutes <= 15 && !!session.zoom_join_url
 }
 </script>
