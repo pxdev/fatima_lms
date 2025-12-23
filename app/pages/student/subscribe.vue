@@ -198,75 +198,73 @@ function getCourseColorClasses(course: any, isSelected: boolean): string {
             <h2 class="text-xl font-semibold text-slate-900">Select Your Course</h2>
             <p class="text-slate-600">Choose the subject you want to learn</p>
 
-            <div class="mt-6 grid gap-4 sm:grid-cols-2">
+            <div class="mt-6 space-y-3">
               <div
                 v-for="course in courses"
                 :key="course.id"
-                class="relative cursor-pointer rounded-xl border-2 p-6 transition-all hover:shadow-md"
+                class="relative flex cursor-pointer items-start gap-4 rounded-xl border-2 bg-white p-4 transition-all hover:bg-slate-50"
                 :class="[
-                  selectedCourseId === course.id 
-                    ? 'border-primary-500 bg-primary-50/50 shadow-md' 
+                  selectedCourseId === course.id
+                    ? 'border-primary-500 bg-primary-50/50 shadow-sm'
                     : 'border-slate-200 hover:border-slate-300'
                 ]"
                 @click="selectCourse(course.id)"
               >
-                <!-- Popular Badge -->
-                <div v-if="course.is_popular" class="absolute -top-3 left-4">
-                  <span class="rounded-full bg-amber-500 px-3 py-1 text-xs font-semibold text-white">
-                    Popular
-                  </span>
-                </div>
-
                 <!-- Selection Indicator -->
-                <div class="absolute right-4 top-4">
-                  <div
-                    class="flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all"
-                    :class="[
-                      selectedCourseId === course.id
-                        ? 'border-primary-500 bg-primary-500'
-                        : 'border-slate-300'
-                    ]"
-                  >
-                    <UIcon
-                      v-if="selectedCourseId === course.id"
-                      name="i-heroicons-check"
-                      class="h-4 w-4 text-white"
-                    />
-                  </div>
+                <div
+                  class="mt-1 flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all"
+                  :class="[
+                    selectedCourseId === course.id
+                      ? 'border-primary-500 bg-primary-500'
+                      : 'border-slate-300'
+                  ]"
+                >
+                  <UIcon
+                    v-if="selectedCourseId === course.id"
+                    name="i-heroicons-check"
+                    class="h-4 w-4 text-white"
+                  />
                 </div>
 
                 <!-- Course Icon -->
-                <div 
-                  class="mb-4 flex h-14 w-14 items-center justify-center rounded-xl"
+                <div
+                  class="flex h-12 w-12 items-center justify-center rounded-xl"
                   :class="selectedCourseId === course.id ? 'bg-primary-100' : 'bg-slate-100'"
                 >
-                  <UIcon 
-                    :name="getCourseIcon(course)" 
-                    class="h-7 w-7"
+                  <UIcon
+                    :name="getCourseIcon(course)"
+                    class="h-6 w-6"
                     :class="selectedCourseId === course.id ? 'text-primary-600' : 'text-slate-500'"
                   />
                 </div>
 
                 <!-- Course Info -->
-                <h3 class="text-lg font-semibold text-slate-900">{{ course.label }}</h3>
-                <p v-if="course.description" class="mt-2 text-sm text-slate-600 line-clamp-2">
-                  {{ course.description }}
-                </p>
+                <div class="flex-1 space-y-2">
+                  <div class="flex flex-wrap items-center gap-2">
+                    <h3 class="text-lg font-semibold text-slate-900">{{ course.label }}</h3>
+                    <UBadge v-if="course.level" color="neutral" variant="soft" size="xs">
+                      {{ course.level }}
+                    </UBadge>
+                    <UBadge v-if="course.is_popular" color="amber" variant="solid" size="xs">
+                      Popular
+                    </UBadge>
+                  </div>
 
-                <!-- Level Badge -->
-                <div v-if="course.level" class="mt-3">
-                  <UBadge color="neutral" variant="soft" size="sm">
-                    {{ course.level }}
-                  </UBadge>
+                  <p v-if="course.description" class="text-sm text-slate-600 line-clamp-2">
+                    {{ course.description }}
+                  </p>
+
+                  <div v-if="course.features?.length" class="flex flex-wrap gap-3 text-sm text-slate-600">
+                    <span
+                      v-for="feature in course.features.slice(0, 3)"
+                      :key="feature"
+                      class="inline-flex items-center gap-1"
+                    >
+                      <UIcon name="i-heroicons-check" class="h-4 w-4 text-green-500" />
+                      {{ feature }}
+                    </span>
+                  </div>
                 </div>
-
-                <!-- Features -->
-                <ul v-if="course.features?.length" class="mt-4 space-y-1">
-                  <li v-for="feature in course.features.slice(0, 3)" :key="feature" class="flex items-center gap-2 text-sm text-slate-600">
-                    <UIcon name="i-heroicons-check" class="h-4 w-4 text-green-500" />
-                    {{ feature }}
-                  </li>
-                </ul>
               </div>
             </div>
           </div>
