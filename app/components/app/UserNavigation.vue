@@ -85,6 +85,8 @@ const accountNavigation = computed(() => {
 
 <template>
   <div class="lg:col-span-3">
+    <debug>{{ profile }}</debug>
+
     <UCard>
       <UNavigationMenu
         orientation="vertical"

@@ -15,22 +15,39 @@ useHead({
 </script>
 
 <template>
-  <Html class="h-full text-lg font-rubik">
-    <!-- Dashboard Layout -->
-    <div class="flex min-h-screen bg-gray-50">
+  <UApp>
+    <UDashboardGroup>
       <!-- Sidebar -->
       <DashboardSidebar />
-      
-      <!-- Main Content -->
-      <main class="flex-1">
-        <div class="p-6 lg:p-8">
-          <!-- Breadcrumb -->
-          <DashboardBreadcrumb />
-          
-          <!-- Page Content -->
-          <slot />
-        </div>
-      </main>
-    </div>
-  </Html>
+
+      <!-- Main Panel -->
+      <UDashboardPanel grow>
+        <!-- Top Navbar -->
+        <template #header>
+          <UDashboardNavbar>
+            <template #leading>
+              <UDashboardSidebarToggle />
+            </template>
+            
+            <template #center>
+              <DashboardBreadcrumb />
+            </template>
+            
+            <template #trailing>
+              <div class="flex items-center gap-2">
+                <UColorModeButton />
+              </div>
+            </template>
+          </UDashboardNavbar>
+        </template>
+
+        <!-- Page Content -->
+        <template #body>
+          <UContainer class="py-6">
+            <slot />
+          </UContainer>
+        </template>
+      </UDashboardPanel>
+    </UDashboardGroup>
+  </UApp>
 </template>

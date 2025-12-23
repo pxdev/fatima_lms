@@ -279,24 +279,24 @@ function getRecentSessions() {
             v-else
             :data="getRecentSessions()"
             :columns="[
-              { key: 'student', label: 'Student' },
-              { key: 'course', label: 'Course' },
-              { key: 'start_at', label: 'Date/Time' },
-              { key: 'status', label: 'Status' }
+              { id: 'student', header: 'Student' },
+              { id: 'course', header: 'Course' },
+              { id: 'start_at', header: 'Date/Time' },
+              { id: 'status', header: 'Status' }
             ]"
           >
-            <template #student-data="{ row }">
-              {{ row.subscription?.student?.display_name || '-' }}
+            <template #student-cell="{ row }">
+              {{ row.original.subscription?.student?.display_name || '-' }}
             </template>
-            <template #course-data="{ row }">
-              {{ row.subscription?.course?.label || '-' }}
+            <template #course-cell="{ row }">
+              {{ row.original.subscription?.course?.label || '-' }}
             </template>
-            <template #start_at-data="{ row }">
-              {{ formatDateTime(row.start_at) }}
+            <template #start_at-cell="{ row }">
+              {{ formatDateTime(row.original.start_at) }}
             </template>
-            <template #status-data="{ row }">
-              <UBadge :color="getStatusColor(row.status)" variant="soft" size="sm">
-                {{ row.status.replace(/_/g, ' ') }}
+            <template #status-cell="{ row }">
+              <UBadge :color="getStatusColor(row.original.status) as any" variant="soft" size="sm">
+                {{ row.original.status.replace(/_/g, ' ') }}
               </UBadge>
             </template>
           </UTable>

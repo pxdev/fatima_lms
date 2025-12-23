@@ -47,12 +47,12 @@ const teachers = ref<Teacher[]>([])
 const isLoading = ref(true)
 const error = ref<string | null>(null)
 
-const statusFilter = ref('')
+const statusFilter = ref('all')
 const selectedTeacher = ref<Record<string, string>>({})
 const isAssigning = ref<Record<string, boolean>>({})
 
 const statusOptions = [
-  { value: '', label: 'All Statuses' },
+  { value: 'all', label: 'All Statuses' },
   { value: 'draft', label: 'Draft' },
   { value: 'pending_payment', label: 'Pending Payment' },
   { value: 'payment_received', label: 'Payment Received' },
@@ -63,7 +63,7 @@ const statusOptions = [
 ]
 
 const filteredSubscriptions = computed(() => {
-  if (!statusFilter.value) return subscriptions.value
+  if (statusFilter.value === 'all') return subscriptions.value
   return subscriptions.value.filter(s => s.status === statusFilter.value)
 })
 
@@ -208,33 +208,33 @@ function getStatusColor(status: string): string {
         <UTable
           :data="filteredSubscriptions"
           :columns="[
-            { key: 'student.display_name', label: 'Student' },
-            { key: 'course.label', label: 'Course' },
-            { key: 'package.label', label: 'Package' },
-            { key: 'teacher', label: 'Teacher' },
-            { key: 'status', label: 'Status' },
-            { key: 'sessions', label: 'Sessions' },
-            { key: 'date_created', label: 'Created' },
-            { key: 'actions', label: '' }
+            { id: 'student', header: 'Student' },
+            { id: 'course', header: 'Course' },
+            { id: 'package', header: 'Package' },
+            { id: 'teacher', header: 'Teacher' },
+            { id: 'status', header: 'Status' },
+            { id: 'sessions', header: 'Sessions' },
+            { id: 'date_created', header: 'Created' },
+            { id: 'actions', header: '' }
           ]"
         >
-          <template #student.display_name-data="{ row }">
-            <span class="font-medium">{{ row.student?.display_name || '-' }}</span>
+          <template #student-cell="{ row }">
+            <span class="font-medium">{{ row.original.student?.display_name || '-' }}</span>
           </template>
-          <template #course.label-data="{ row }">
-            {{ row.course?.label || '-' }}
+          <template #course-cell="{ row }">
+            {{ row.original.course?.label || '-' }}
           </template>
-          <template #package.label-data="{ row }">
-            {{ row.package?.label || '-' }}
+          <template #package-cell="{ row }">
+            {{ row.original.package?.label || '-' }}
           </template>
-          <template #teacher-data="{ row }">
-            <template v-if="row.teacher">
-              {{ row.teacher.display_name }}
+          <template #teacher-cell="{ row }">
+            <template v-if="row.original.teacher">
+              {{ row.original.teacher.display_name }}
             </template>
-            <template v-else-if="row.status === 'payment_received'">
+            <template v-else-if="row.original.status === 'payment_received'">
               <div class="flex items-center gap-2">
                 <USelect
-                  v-model="selectedTeacher[row.id]"
+                  v-model="selectedTeacher[row.original.id]"
                   :items="teachers.map(t => ({ value: t.id, label: t.display_name }))"
                   value-key="value"
                   label-key="label"
@@ -245,9 +245,9 @@ function getStatusColor(status: string): string {
                 <UButton
                   size="xs"
                   color="primary"
-                  :loading="isAssigning[row.id]"
-                  :disabled="!selectedTeacher[row.id]"
-                  @click="assignTeacher(row.id)"
+                  :loading="isAssigning[row.original.id]"
+                  :disabled="!selectedTeacher[row.original.id]"
+                  @click="assignTeacher(row.original.id)"
                 >
                   Assign
                 </UButton>
@@ -257,23 +257,23 @@ function getStatusColor(status: string): string {
               <span class="text-slate-400">-</span>
             </template>
           </template>
-          <template #status-data="{ row }">
-            <UBadge :color="getStatusColor(row.status)" variant="soft" size="sm">
-              {{ row.status.replace(/_/g, ' ') }}
+          <template #status-cell="{ row }">
+            <UBadge :color="getStatusColor(row.original.status) as any" variant="soft" size="sm">
+              {{ row.original.status.replace(/_/g, ' ') }}
             </UBadge>
           </template>
-          <template #sessions-data="{ row }">
-            {{ row.sessions_remaining }}/{{ row.sessions_total }}
+          <template #sessions-cell="{ row }">
+            {{ row.original.sessions_remaining }}/{{ row.original.sessions_total }}
           </template>
-          <template #date_created-data="{ row }">
-            {{ formatDate(row.date_created) }}
+          <template #date_created-cell="{ row }">
+            {{ formatDate(row.original.date_created) }}
           </template>
-          <template #actions-data="{ row }">
+          <template #actions-cell="{ row }">
             <UButton
               variant="ghost"
               color="neutral"
               size="sm"
-              :to="`/admin/subscriptions/${row.id}`"
+              :to="`/admin/subscriptions/${row.original.id}`"
             >
               View
             </UButton>

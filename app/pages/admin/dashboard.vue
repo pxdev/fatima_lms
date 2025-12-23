@@ -227,34 +227,34 @@ function getStatusColor(status: string): string {
           <UTable
             :data="subscriptions"
             :columns="[
-              { key: 'student.display_name', label: 'Student' },
-              { key: 'course.label', label: 'Course' },
-              { key: 'package.label', label: 'Package' },
-              { key: 'status', label: 'Status' },
-              { key: 'sessions_remaining', label: 'Sessions Left' },
-              { key: 'actions', label: '' }
+              { id: 'student', header: 'Student' },
+              { id: 'course', header: 'Course' },
+              { id: 'package', header: 'Package' },
+              { id: 'status', header: 'Status' },
+              { id: 'sessions_remaining', header: 'Sessions Left' },
+              { id: 'actions', header: '' }
             ]"
           >
-            <template #student.display_name-data="{ row }">
-              {{ row.student?.display_name || 'Unknown' }}
+            <template #student-cell="{ row }">
+              {{ row.original.student?.display_name || 'Unknown' }}
             </template>
-            <template #course.label-data="{ row }">
-              {{ row.course?.label || '-' }}
+            <template #course-cell="{ row }">
+              {{ row.original.course?.label || '-' }}
             </template>
-            <template #package.label-data="{ row }">
-              {{ row.package?.label || '-' }}
+            <template #package-cell="{ row }">
+              {{ row.original.package?.label || '-' }}
             </template>
-            <template #status-data="{ row }">
-              <UBadge :color="getStatusColor(row.status)" variant="soft" size="sm">
-                {{ row.status.replace(/_/g, ' ') }}
+            <template #status-cell="{ row }">
+              <UBadge :color="getStatusColor(row.original.status) as any" variant="soft" size="sm">
+                {{ row.original.status.replace(/_/g, ' ') }}
               </UBadge>
             </template>
-            <template #actions-data="{ row }">
+            <template #actions-cell="{ row }">
               <UButton
                 variant="ghost"
                 color="neutral"
                 size="sm"
-                :to="`/admin/subscriptions/${row.id}`"
+                :to="`/admin/subscriptions/${row.original.id}`"
               >
                 View
               </UButton>
