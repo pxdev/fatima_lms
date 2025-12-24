@@ -16,33 +16,16 @@ useHead({
 
 <template>
   <UApp>
-    <UDashboardGroup>
-      <!-- Sidebar -->
-      <DashboardSidebar />
+    <div class="min-h-screen bg-slate-50">
+      <!-- Top Bar -->
+      <DashboardTopBar />
 
-      <!-- Main Panel -->
-      <UDashboardPanel grow>
-        <!-- Top Navbar -->
-        <template #header>
-          <UDashboardNavbar>
-            <template #leading>
-              <UDashboardSidebarToggle />
-            </template>
-            
-            <template #center>
-              <DashboardBreadcrumb />
-            </template>
-            
-          </UDashboardNavbar>
-        </template>
-
-        <!-- Page Content -->
-        <template #body>
-          <UContainer class="py-6">
-            <slot />
-          </UContainer>
-        </template>
-      </UDashboardPanel>
-    </UDashboardGroup>
+      <!-- Main Content -->
+      <main>
+        <UContainer class="py-8">
+          <slot />
+        </UContainer>
+      </main>
+    </div>
   </UApp>
 </template>

@@ -118,14 +118,24 @@ export function useSubscriptionCard() {
    * Get course for subscription
    */
   function getSubscriptionCourse(subscription: Subscription) {
-    return getCourseById(subscription.course)
+    // If course is already an object (expanded), return it
+    if (typeof subscription.course === 'object' && subscription.course !== null) {
+      return subscription.course as { id: string; label: string }
+    }
+    // Otherwise, look it up by ID
+    return getCourseById(subscription.course as string)
   }
 
   /**
    * Get package for subscription
    */
   function getSubscriptionPackage(subscription: Subscription) {
-    return getPackageById(subscription.package)
+    // If package is already an object (expanded), return it
+    if (typeof subscription.package === 'object' && subscription.package !== null) {
+      return subscription.package as { id: string; label: string }
+    }
+    // Otherwise, look it up by ID
+    return getPackageById(subscription.package as string)
   }
 
   return {

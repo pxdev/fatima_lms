@@ -15,20 +15,20 @@ export default defineAppConfig({
             variants: {
                 size: {
                     lg: {
-                        base: 'py-2.5 px-2 min-h-[42px] text-xs gap-2',
-                        leading: 'ps-3',
-                        trailing: 'pe-3',
-                        leadingIcon: 'size-5',
-                        leadingAvatarSize: 'xs',
-                        trailingIcon: 'size-5'
-                    },
-                    xl: {
-                        base: 'py-3.5 px-3 min-h-[52px] text-sm gap-2',
-                        leading: 'ps-3',
-                        trailing: 'pe-3',
+                        base: 'py-3 px-3 min-h-[48px] text-sm gap-2',
+                        leading: 'ps-4',
+                        trailing: 'pe-4',
                         leadingIcon: 'size-6',
                         leadingAvatarSize: 'xs',
                         trailingIcon: 'size-6'
+                    },
+                    xl: {
+                        base: 'py-4 px-4 min-h-[56px] text-base gap-2',
+                        leading: 'ps-4',
+                        trailing: 'pe-4',
+                        leadingIcon: 'size-7',
+                        leadingAvatarSize: 'xs',
+                        trailingIcon: 'size-7'
                     }
                 },
             },
@@ -36,19 +36,19 @@ export default defineAppConfig({
 
         button: {
             base: [
-                'cursor-pointer text-black'
+                'cursor-pointer text-black font-medium'
             ],
             variants: {
                 size: {
                     lg: {
-                        base: 'py-2 px-3 min-h-[48px] text-sm gap-2',
-                        leadingIcon: 'size-5',
-                        trailingIcon: 'size-5',
+                        base: 'py-3 px-4 min-h-[52px] text-base gap-2',
+                        leadingIcon: 'size-6',
+                        trailingIcon: 'size-6',
                     },
                     xl: {
-                        base: 'py-3.5 px-3 min-h-[52px] text-sm gap-2',
-                        leadingIcon: 'size-5',
-                        trailingIcon: 'size-5',
+                        base: 'py-4 px-5 min-h-[60px] text-base gap-2',
+                        leadingIcon: 'size-6',
+                        trailingIcon: 'size-6',
                     }
                 },
 
@@ -82,7 +82,7 @@ export default defineAppConfig({
 
         formField: {
             slots: {
-                label: 'block font-medium text-default text-xs mb-1',
+                label: 'block font-medium text-default text-sm mb-2',
             }
         },
 
@@ -101,10 +101,33 @@ export default defineAppConfig({
 
         breadcrumb: {
             slots: {
-                link: 'text-xs',
-                linkLeadingIcon: 'size-4',
-                separatorIcon: 'size-4 '
+                link: 'text-sm font-medium',
+                linkLeadingIcon: 'size-5',
+                separatorIcon: 'size-5'
             },
+        },
+
+        skeleton: {
+            base: 'bg-white animate-pulse',
+            background: 'bg-white',
+        },
+
+        card: {
+            base: 'shadow-none',
+            ring: 'ring-0',
+            rounded: 'rounded-xl',
+            body: {
+                base: 'p-6',
+                padding: 'p-6 sm:p-6'
+            },
+            header: {
+                base: 'p-6',
+                padding: 'px-6 py-5 sm:px-6'
+            },
+            footer: {
+                base: 'p-6',
+                padding: 'px-6 py-5 sm:px-6'
+            }
         },
 
 

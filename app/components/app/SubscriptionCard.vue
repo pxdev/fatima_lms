@@ -57,7 +57,7 @@ function handleActionClick(e: Event) {
   <!-- Compact Variant (for dashboard grid) -->
   <UCard
     v-if="variant === 'compact'"
-    class="group transition-all duration-300 hover:shadow-lg"
+    class="group transition-all duration-300"
     @click="handleClick"
   >
     <div class="space-y-4">
@@ -407,7 +407,7 @@ function handleActionClick(e: Event) {
     <!-- Stats Grid -->
     <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <!-- Sessions Remaining -->
-      <UCard class="group transition-all duration-300 hover:shadow-md">
+      <UCard class="group transition-all duration-300">
         <div class="p-5">
           <div class="mb-3 flex items-center justify-between">
             <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100">
@@ -423,7 +423,7 @@ function handleActionClick(e: Event) {
       </UCard>
 
       <!-- Total Sessions -->
-      <UCard class="group transition-all duration-300 hover:shadow-md">
+      <UCard class="group transition-all duration-300">
         <div class="p-5">
           <div class="mb-3 flex items-center justify-between">
             <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
@@ -439,7 +439,7 @@ function handleActionClick(e: Event) {
       </UCard>
 
       <!-- Postpones Remaining -->
-      <UCard class="group transition-all duration-300 hover:shadow-md">
+      <UCard class="group transition-all duration-300">
         <div class="p-5">
           <div class="mb-3 flex items-center justify-between">
             <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100">
@@ -455,7 +455,7 @@ function handleActionClick(e: Event) {
       </UCard>
 
       <!-- Weeks Total -->
-      <UCard class="group transition-all duration-300 hover:shadow-md">
+      <UCard class="group transition-all duration-300">
         <div class="p-5">
           <div class="mb-3 flex items-center justify-between">
             <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100">

@@ -64,7 +64,7 @@ const menuItems = computed(() => {
     items.push({
       label: 'New Subscription',
       icon: 'hugeicons:add-circle',
-      to: '/student/onboarding/course'
+      to: '/student/subscribe'
     })
   }
 
@@ -105,40 +105,48 @@ const roleBadgeColor = computed(() => {
 
 <template>
   <div>
-    <u-dropdown-menu
+    <UDropdownMenu
       v-if="user"
-      size="sm"
+      size="lg"
       arrow
       :items="menuItems"
       :ui="{
-        content: 'w-56'
+        content: 'w-64 text-base',
+        item: {
+          base: 'text-base py-2.5 px-3',
+          icon: {
+            base: 'w-5 h-5'
+          }
+        }
       }"
     >
-      <u-button variant="ghost" class="flex items-center gap-2 px-2">
-        <u-avatar
-          :alt="user?.first_name || 'User'"
-          icon="i-heroicons-user"
-          size="sm"
+      <UButton variant="ghost" class="flex items-center gap-3 px-3 py-2">
+        <UAvatar
+          :alt="profile?.display_name || user?.first_name || 'User'"
+          icon="hugeicons:user-02"
+          size="md"
         />
         <div class="hidden sm:flex flex-col items-start">
-          <span class="text-sm font-medium">{{ user?.first_name || 'User' }}</span>
-          <u-badge :color="roleBadgeColor" variant="soft" size="xs">
+          <span class="text-base font-semibold">
+            {{ profile?.display_name || user?.first_name || 'User' }}
+          </span>
+          <UBadge :color="roleBadgeColor" variant="soft" size="sm">
             {{ userRole }}
-          </u-badge>
+          </UBadge>
         </div>
-        <u-icon name="i-heroicons-chevron-down" class="h-4 w-4 text-slate-400" />
-      </u-button>
-    </u-dropdown-menu>
+        <UIcon name="hugeicons:arrow-down-01" class="h-5 w-5 text-slate-400" />
+      </UButton>
+    </UDropdownMenu>
 
-    <u-button
+    <UButton
       v-else
       color="primary"
-      size="xl"
-      class="rounded-full py-3 px-6"
+      size="lg"
       to="/auth/login"
+      class="text-base font-medium px-6 py-2.5"
     >
-      Students Login
-    </u-button>
+      Login
+    </UButton>
   </div>
 </template>
 

@@ -16,8 +16,8 @@ interface Subscription {
   id: string
   student: string
   teacher: string | null
-  course: string
-  package: string
+  course: string | { id: string; label: string }
+  package: string | { id: string; label: string }
   status: SubscriptionStatus
   weeks_total: number
   sessions_total: number
@@ -63,6 +63,25 @@ export function useSubscriptions() {
           filter: {
             student: { _eq: studentProfileId }
           },
+          fields: [
+            'id',
+            'student',
+            'teacher',
+            'course.id',
+            'course.label',
+            'package.id',
+            'package.label',
+            'status',
+            'weeks_total',
+            'sessions_total',
+            'sessions_remaining',
+            'postpone_total',
+            'postpone_remaining',
+            'cycle_start_at',
+            'cycle_end_at',
+            'lemon_subscription_id',
+            'admin_note'
+          ],
           sort: ['-date_created']
         }
       })
@@ -87,7 +106,28 @@ export function useSubscriptions() {
     try {
       const data = await getItemById<Subscription>({
         collection: 'subscriptions',
-        id
+        id,
+        params: {
+          fields: [
+            'id',
+            'student',
+            'teacher',
+            'course.id',
+            'course.label',
+            'package.id',
+            'package.label',
+            'status',
+            'weeks_total',
+            'sessions_total',
+            'sessions_remaining',
+            'postpone_total',
+            'postpone_remaining',
+            'cycle_start_at',
+            'cycle_end_at',
+            'lemon_subscription_id',
+            'admin_note'
+          ]
+        }
       })
 
       currentSubscription.value = data || null

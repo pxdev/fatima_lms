@@ -128,24 +128,7 @@ async function handleLogout() {
 
     <!-- Navigation -->
     <template #default="{ collapsed }">
-      <!-- User Info -->
-      <div 
-        class="flex items-center gap-3 p-3 mb-2 rounded-lg bg-gray-50 dark:bg-gray-800/50" 
-        :class="collapsed ? 'justify-center' : ''"
-      >
-        <UAvatar 
-          :text="profile?.display_name?.charAt(0) || user?.first_name?.charAt(0) || 'U'"
-          size="sm"
-        />
-        <div v-if="!collapsed" class="flex-1 min-w-0">
-          <p class="font-medium text-sm text-gray-900 dark:text-white truncate">
-            {{ profile?.display_name || user?.first_name || 'User' }}
-          </p>
-          <UBadge :color="roleBadgeColor" variant="soft" size="xs">
-            {{ roleLabel }}
-          </UBadge>
-        </div>
-      </div>
+ 
 
       <!-- Main Navigation -->
       <UNavigationMenu     
