@@ -10,24 +10,14 @@ useSeoMeta({
 })
 
 const { profile, fetchProfile, isLoading: profileLoading } = useProfile()
-const { subscriptions, fetchMySubscriptions, getStatusColor, isLoading: subsLoading } = useSubscriptions()
-const { courses, fetchCourses, getCourseById } = useCourses()
-const { packages, fetchPackages, getPackageById } = usePackages()
+const { subscriptions, fetchMySubscriptions, isLoading: subsLoading } = useSubscriptions()
+const { courses, fetchCourses } = useCourses()
+const { packages, fetchPackages } = usePackages()
+const { getStatusConfig } = useSubscriptionCard()
 
 const isLoading = computed(() => profileLoading.value || subsLoading.value)
 const expandedCards = ref<Set<string>>(new Set())
 const activeFilter = ref<string>('all')
-
-// DRY: Status configuration map
-const STATUS_CONFIG = {
-  active: { label: 'Active', icon: 'i-heroicons-rocket-launch', color: 'primary', bg: 'bg-primary-50', border: 'border-primary-200' },
-  teacher_assigned: { label: 'Teacher Assigned', icon: 'i-heroicons-user-plus', color: 'primary', bg: 'bg-primary-50', border: 'border-primary-200' },
-  payment_received: { label: 'Payment Received', icon: 'i-heroicons-check-badge', color: 'success', bg: 'bg-green-50', border: 'border-green-200' },
-  pending_payment: { label: 'Pending Payment', icon: 'i-heroicons-arrow-path', color: 'warning', bg: 'bg-blue-50', border: 'border-blue-200' },
-  draft: { label: 'Draft', icon: 'i-heroicons-banknotes', color: 'warning', bg: 'bg-amber-50', border: 'border-amber-200' },
-  completed: { label: 'Completed', icon: 'i-heroicons-trophy', color: 'success', bg: 'bg-green-50', border: 'border-green-200' },
-  cancelled: { label: 'Cancelled', icon: 'i-heroicons-x-circle', color: 'error', bg: 'bg-red-50', border: 'border-red-200' }
-} as const
 
 onMounted(async () => {
   await Promise.all([
@@ -41,29 +31,6 @@ onMounted(async () => {
   }
 })
 
-// DRY: Reusable computed properties
-const getSubscriptionCourse = (subscription: any) => getCourseById(subscription.course)
-const getSubscriptionPackage = (subscription: any) => getPackageById(subscription.package)
-
-const getSessionsProgress = (subscription: any) => {
-  const completed = subscription.sessions_total - subscription.sessions_remaining
-  const total = subscription.sessions_total
-  return {
-    percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
-    completed,
-    total
-  }
-}
-
-const getStatusConfig = (status: string) => {
-  return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || {
-    label: status.replace(/_/g, ' '),
-    icon: 'i-heroicons-book-open',
-    color: 'neutral',
-    bg: 'bg-slate-50',
-    border: 'border-slate-200'
-  }
-}
 
 // Group subscriptions by status
 const groupedSubscriptions = computed(() => {
@@ -97,7 +64,8 @@ const filteredSubscriptions = computed(() => {
 const filterCounts = computed(() => {
   const counts: Record<string, number> = { all: subscriptions.value.length }
   
-  Object.keys(STATUS_CONFIG).forEach(status => {
+  const statuses = ['active', 'teacher_assigned', 'payment_received', 'pending_payment', 'draft', 'completed', 'cancelled']
+  statuses.forEach(status => {
     counts[status] = subscriptions.value.filter(s => s.status === status).length
   })
   
@@ -202,193 +170,15 @@ function isExpanded(subscriptionId: string) {
 
       <!-- Subscriptions List -->
       <div class="space-y-3">
-        <UCard
-          v-for="(sub, index) in filteredSubscriptions"
+        <SubscriptionCard
+          v-for="sub in filteredSubscriptions"
           :key="sub.id"
-          class="group cursor-pointer transition-all duration-300"
-          :class="getStatusConfig(sub.status).border"
-          @click="toggleCard(sub.id)"
-        >
-          <!-- Main Card Content -->
-          <div class="flex items-start gap-4">
-            <!-- Status Icon -->
-            <div 
-              class="flex h-16 w-16 flex-shrink-0 items-center justify-center rounded-xl transition-transform duration-300"
-              :class="[
-                getStatusConfig(sub.status).bg,
-                isExpanded(sub.id) ? 'scale-110' : 'group-hover:scale-105'
-              ]"
-            >
-              <UIcon 
-                :name="getStatusConfig(sub.status).icon" 
-                class="h-8 w-8"
-                :class="`text-${getStatusConfig(sub.status).color}-600`"
-              />
-            </div>
-
-            <!-- Content -->
-            <div class="flex-1 min-w-0">
-              <div class="flex items-start justify-between gap-4">
-                <div class="flex-1">
-                  <div class="flex items-center gap-3 flex-wrap">
-                    <h3 class="text-lg font-semibold text-slate-900">
-                      {{ getSubscriptionCourse(sub)?.label || 'Course' }}
-                    </h3>
-                    <UBadge
-                      :color="getStatusColor(sub.status)"
-                      variant="soft"
-                      size="sm"
-                    >
-                      {{ getStatusConfig(sub.status).label }}
-                    </UBadge>
-                  </div>
-                  <p class="mt-1 text-sm text-slate-600">
-                    {{ getSubscriptionPackage(sub)?.label || 'Package' }}
-                  </p>
-                </div>
-
-                <!-- Action Button -->
-                <UButton
-                  :color="sub.status === 'draft' ? 'warning' : 'primary'"
-                  :variant="sub.status === 'draft' ? 'solid' : 'outline'"
-                  size="sm"
-                  @click.stop
-                  :to="`/student/subscriptions/${sub.id}`"
-                >
-                  <UIcon 
-                    :name="sub.status === 'draft' ? 'i-heroicons-banknotes' : 'i-heroicons-arrow-right'" 
-                    class="h-4 w-4" 
-                  />
-                </UButton>
-              </div>
-
-              <!-- Quick Stats -->
-              <div class="mt-3 grid grid-cols-3 gap-4">
-                <div class="flex items-center gap-2">
-                  <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-50">
-                    <UIcon name="i-heroicons-book-open" class="h-4 w-4 text-primary-600" />
-                  </div>
-                  <div>
-                    <p class="text-xs text-slate-500">Remaining</p>
-                    <p class="text-sm font-semibold text-slate-900">{{ sub.sessions_remaining }}</p>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
-                    <UIcon name="i-heroicons-arrow-path" class="h-4 w-4 text-amber-600" />
-                  </div>
-                  <div>
-                    <p class="text-xs text-slate-500">Postpones</p>
-                    <p class="text-sm font-semibold text-amber-600">{{ sub.postpone_remaining }}</p>
-                  </div>
-                </div>
-                <div class="flex items-center gap-2">
-                  <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
-                    <UIcon name="i-heroicons-calendar" class="h-4 w-4 text-blue-600" />
-                  </div>
-                  <div>
-                    <p class="text-xs text-slate-500">Weeks</p>
-                    <p class="text-sm font-semibold text-slate-900">{{ sub.weeks_total }}</p>
-                  </div>
-                </div>
-              </div>
-
-              <!-- Progress Bar -->
-              <div class="mt-4">
-                <div class="mb-2 flex items-center justify-between text-xs">
-                  <span class="text-slate-600">Sessions Progress</span>
-                  <span class="font-semibold text-slate-900">
-                    {{ getSessionsProgress(sub).completed }} / {{ getSessionsProgress(sub).total }}
-                    ({{ getSessionsProgress(sub).percentage }}%)
-                  </span>
-                </div>
-                <div class="h-2 overflow-hidden rounded-full bg-slate-200">
-                  <div
-                    class="h-full rounded-full bg-primary-600 transition-all duration-700 ease-out"
-                    :style="{ width: `${getSessionsProgress(sub).percentage}%` }"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <!-- Expand Icon -->
-            <div class="flex-shrink-0">
-              <UIcon 
-                name="i-heroicons-chevron-down" 
-                class="h-5 w-5 text-slate-400 transition-transform duration-300"
-                :class="{ 'rotate-180': isExpanded(sub.id) }"
-              />
-            </div>
-          </div>
-
-          <!-- Expanded Details -->
-          <div 
-            v-show="isExpanded(sub.id)"
-            class="mt-4 border-t border-slate-200 pt-4"
-          >
-            <div class="grid gap-4 sm:grid-cols-2">
-              <!-- Course Details -->
-              <div class="space-y-2">
-                <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Course Details</p>
-                <div class="space-y-1">
-                  <p class="text-sm text-slate-900">
-                    <span class="font-medium">Course:</span> {{ getSubscriptionCourse(sub)?.label || 'N/A' }}
-                  </p>
-                  <p class="text-sm text-slate-600">
-                    <span class="font-medium">Package:</span> {{ getSubscriptionPackage(sub)?.label || 'N/A' }}
-                  </p>
-                </div>
-              </div>
-
-              <!-- Subscription Stats -->
-              <div class="space-y-2">
-                <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Statistics</p>
-                <div class="space-y-1 text-sm">
-                  <div class="flex justify-between">
-                    <span class="text-slate-600">Total Sessions:</span>
-                    <span class="font-semibold text-slate-900">{{ sub.sessions_total }}</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-slate-600">Sessions Completed:</span>
-                    <span class="font-semibold text-green-600">{{ getSessionsProgress(sub).completed }}</span>
-                  </div>
-                  <div class="flex justify-between">
-                    <span class="text-slate-600">Postpones Used:</span>
-                    <span class="font-semibold text-amber-600">{{ sub.postpone_total - sub.postpone_remaining }}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Action Buttons -->
-            <div class="mt-4 flex gap-2">
-              <UButton
-                block
-                :color="sub.status === 'draft' ? 'warning' : 'primary'"
-                :variant="sub.status === 'draft' ? 'solid' : 'outline'"
-                :to="`/student/subscriptions/${sub.id}`"
-                @click.stop
-              >
-                <UIcon 
-                  :name="sub.status === 'draft' ? 'i-heroicons-banknotes' : 'i-heroicons-eye'" 
-                  class="mr-2 h-4 w-4" 
-                />
-                {{ sub.status === 'draft' ? 'Complete Payment' : 'View Full Details' }}
-              </UButton>
-              <UButton
-                v-if="['active', 'teacher_assigned'].includes(sub.status)"
-                block
-                variant="outline"
-                color="neutral"
-                :to="`/student/subscriptions/${sub.id}/sessions`"
-                @click.stop
-              >
-                <UIcon name="i-heroicons-video-camera" class="mr-2 h-4 w-4" />
-                View Sessions
-              </UButton>
-            </div>
-          </div>
-        </UCard>
+          :subscription="sub"
+          variant="default"
+          :expandable="true"
+          :expanded="isExpanded(sub.id)"
+          @update:expanded="(val) => val ? expandedCards.add(sub.id) : expandedCards.delete(sub.id)"
+        />
       </div>
     </div>
   </div>

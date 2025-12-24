@@ -12,8 +12,10 @@ useSeoMeta({
 })
 
 const { profile, fetchProfile, isLoading: profileLoading } = useProfile()
-const { subscriptions, fetchMySubscriptions, getStatusColor, isLoading: subsLoading } = useSubscriptions()
+const { subscriptions, fetchMySubscriptions, isLoading: subsLoading } = useSubscriptions()
 const { getItems } = useDirectusItems()
+const { packages, fetchPackages } = usePackages()
+const { courses, fetchCourses } = useCourses()
 
 interface UpcomingSession {
   id: string
@@ -45,7 +47,12 @@ onMounted(async () => {
     console.warn('Failed to sync session statuses:', err)
   }
   
-  await fetchProfile()
+  await Promise.all([
+    fetchProfile(),
+    fetchCourses(),
+    fetchPackages()
+  ])
+  
   if (profile.value?.id) {
     await Promise.all([
       fetchMySubscriptions(profile.value.id),
@@ -264,79 +271,12 @@ function getPendingSubscriptions() {
         <!-- Subscriptions Grid -->
         <h2 class="mb-4 text-lg font-semibold text-slate-900">My Subscriptions</h2>
         <div class="grid gap-6 md:grid-cols-2">
-        <UCard
-          v-for="sub in subscriptions"
-          :key="sub.id"
-          class="transition-all hover:shadow-lg"
-        >
-          <div class="flex items-start justify-between">
-            <div>
-              <UBadge
-                :color="getStatusColor(sub.status)"
-                variant="soft"
-                size="lg"
-              >
-                {{ sub.status.replace(/_/g, ' ') }}
-              </UBadge>
-            </div>
-            <UButton
-              variant="ghost"
-              color="info"
-              size="xl"
-              :to="`/student/subscriptions/${sub.id}`"
-            >
-              <UIcon name="i-heroicons-arrow-right" class="h-5 w-5" />
-            </UButton>
-          </div>
-
-          <div class="mt-4 space-y-4">
-            <!-- Progress -->
-            <div>
-              <div class="mb-2 flex justify-between text-sm">
-                <span class="text-slate-600">Sessions Progress</span>
-                <span class="font-medium text-slate-900">
-                  {{ sub.sessions_total - sub.sessions_remaining }}/{{ sub.sessions_total }}
-                </span>
-              </div>
-              <div class="h-2 overflow-hidden rounded-full bg-slate-100">
-                <div
-                  class="h-full rounded-full bg-primary-500 transition-all"
-                  :style="{
-                    width: `${((sub.sessions_total - sub.sessions_remaining) / sub.sessions_total) * 100}%`
-                  }"
-                />
-              </div>
-            </div>
-
-            <!-- Stats -->
-            <div class="flex gap-4 text-sm">
-              <div>
-                <span class="text-slate-500">Sessions Left:</span>
-                <span class="ml-1 font-semibold text-primary-600">{{ sub.sessions_remaining }}</span>
-              </div>
-              <div>
-                <span class="text-slate-500">Postpones:</span>
-                <span class="ml-1 font-semibold text-amber-600">{{ sub.postpone_remaining }}</span>
-              </div>
-            </div>
-          </div>
-
-          <template #footer>
-            <UButton
-              block
-              size="xl"
-              :color="sub.status === 'draft' ? 'warning' : 'info'"
-              :variant="sub.status === 'draft' ? 'solid' : 'outline'"
-              :to="`/student/subscriptions/${sub.id}`"
-            >
-              <UIcon 
-                :name="sub.status === 'draft' ? 'i-heroicons-credit-card' : 'i-heroicons-eye'" 
-                class="mr-2 h-5 w-5" 
-              />
-              {{ sub.status === 'draft' ? 'Complete Payment' : 'View Details' }}
-            </UButton>
-          </template>
-        </UCard>
+          <SubscriptionCard
+            v-for="sub in subscriptions"
+            :key="sub.id"
+            :subscription="sub"
+            variant="compact"
+          />
         </div>
       </template>
     </div>

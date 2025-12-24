@@ -11,81 +11,42 @@ const {
   currentSubscription, 
   fetchSubscription, 
   updateSubscriptionStatus,
-  getStatusColor, 
   isLoading, 
   error 
 } = useSubscriptions()
-const { packages, fetchPackages, getPackageById } = usePackages()
-const { courses, fetchCourses, getCourseById } = useCourses()
-
-const selectedCourse = computed(() => 
-  currentSubscription.value ? getCourseById(currentSubscription.value.course) : null
-)
-const selectedPackage = computed(() => 
-  currentSubscription.value ? getPackageById(currentSubscription.value.package) : null
-)
+const { packages, fetchPackages } = usePackages()
+const { courses, fetchCourses } = useCourses()
 
 const isPolling = ref(false)
-const pollingInterval = ref<NodeJS.Timeout | null>(null)
+const pollingInterval = ref<ReturnType<typeof setInterval> | null>(null)
+
+const { getSubscriptionCourse, getSubscriptionPackage, getStatusConfig } = useSubscriptionCard()
+
+const selectedCourse = computed(() => 
+  currentSubscription.value ? getSubscriptionCourse(currentSubscription.value) : null
+)
+const selectedPackage = computed(() => 
+  currentSubscription.value ? getSubscriptionPackage(currentSubscription.value) : null
+)
 
 useSeoMeta({
   title: computed(() => `Subscription - ${selectedCourse.value?.label || 'Loading...'}`),
   description: 'View and manage your subscription'
 })
 
-// Computed properties for better UX
-const sessionsProgress = computed(() => {
-  if (!currentSubscription.value) return { percentage: 0, completed: 0, total: 0 }
-  const completed = currentSubscription.value.sessions_total - currentSubscription.value.sessions_remaining
-  const total = currentSubscription.value.sessions_total
-  return {
-    percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
-    completed,
-    total
-  }
-})
-
 const statusConfig = computed(() => {
-  const status = currentSubscription.value?.status
-  const configs: Record<string, { icon: string; title: string; description: string; color: string }> = {
-    draft: {
-      icon: 'i-heroicons-banknotes',
-      title: 'Payment Required',
-      description: 'Complete your payment to activate your subscription and start learning.',
-      color: 'amber'
-    },
-    pending_payment: {
-      icon: 'i-heroicons-arrow-path',
-      title: 'Waiting for Payment',
-      description: 'Please complete your payment in the checkout window. This page will update automatically.',
-      color: 'blue'
-    },
-    payment_received: {
-      icon: 'i-heroicons-check-badge',
-      title: 'Payment Confirmed!',
-      description: 'Your payment has been received. An admin will assign a teacher to you shortly.',
-      color: 'green'
-    },
-    teacher_assigned: {
-      icon: 'i-heroicons-user-plus',
-      title: 'Teacher Assigned!',
-      description: 'Great news! Your teacher has been assigned. You can now schedule your sessions.',
-      color: 'primary'
-    },
-    active: {
-      icon: 'i-heroicons-rocket-launch',
-      title: 'Subscription Active',
-      description: 'Your subscription is active and sessions are ready. Start learning!',
-      color: 'primary'
-    },
-    completed: {
-      icon: 'i-heroicons-trophy',
-      title: 'Subscription Completed',
-      description: 'Congratulations! You\'ve completed all sessions. Ready to continue your learning journey?',
-      color: 'success'
+  if (!currentSubscription.value) {
+    const config = getStatusConfig('draft')
+    return {
+      ...config,
+      title: config.label
     }
   }
-  return configs[status || ''] || configs.draft
+  const config = getStatusConfig(currentSubscription.value.status)
+  return {
+    ...config,
+    title: config.label
+  }
 })
 
 onMounted(async () => {
@@ -183,144 +144,11 @@ function goToSessions() {
 
       <!-- Subscription Details -->
       <template v-else-if="currentSubscription">
-        <!-- Hero Header Card -->
-        <UCard class="mb-6">
-          <div class="bg-primary-600 p-8 text-white">
-            <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-              <div class="flex-1">
-                <div class="mb-2">
-                  <UBadge
-                    :color="getStatusColor(currentSubscription.status) as any"
-                    variant="solid"
-                    size="lg"
-                  >
-                    {{ currentSubscription.status.replace(/_/g, ' ') }}
-                  </UBadge>
-                </div>
-                <h1 class="mb-2 text-3xl font-bold md:text-4xl">
-                  {{ selectedCourse?.label || 'Course' }}
-                </h1>
-                <p class="text-lg text-primary-100">
-                  {{ selectedPackage?.label || 'Package' }}
-                </p>
-              </div>
-              
-              <!-- Progress Circle -->
-              <div class="flex items-center justify-center">
-                <div class="relative">
-                  <svg class="h-24 w-24 transform -rotate-90" viewBox="0 0 100 100">
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      stroke="rgba(255,255,255,0.2)"
-                      stroke-width="8"
-                      fill="none"
-                    />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="40"
-                      stroke="white"
-                      stroke-width="8"
-                      fill="none"
-                      stroke-dasharray="251.2"
-                      :stroke-dashoffset="251.2 - (sessionsProgress.percentage / 100) * 251.2"
-                      class="transition-all duration-500 ease-out"
-                    />
-                  </svg>
-                  <div class="absolute inset-0 flex flex-col items-center justify-center">
-                    <span class="text-2xl font-bold">{{ sessionsProgress.percentage }}%</span>
-                    <span class="text-xs text-primary-100">Complete</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Progress Bar Section -->
-          <div class="p-6">
-            <div class="mb-2 flex items-center justify-between">
-              <span class="text-sm font-medium text-slate-600">Sessions Progress</span>
-              <span class="text-sm font-semibold text-slate-900">
-                {{ sessionsProgress.completed }} / {{ sessionsProgress.total }} sessions
-              </span>
-            </div>
-            <div class="h-3 overflow-hidden rounded-full bg-slate-200">
-              <div
-                class="h-full rounded-full bg-primary-600 transition-all duration-500 ease-out"
-                :style="{ width: `${sessionsProgress.percentage}%` }"
-              />
-            </div>
-          </div>
-        </UCard>
-
-        <!-- Enhanced Stats Grid -->
-        <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <!-- Sessions Remaining -->
-          <UCard class="group transition-all duration-300">
-            <div class="p-6">
-              <div class="mb-4 flex items-center justify-between">
-                <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-primary-100">
-                  <UIcon name="i-heroicons-book-open" class="h-7 w-7 text-primary-600" />
-                </div>
-              </div>
-              <p class="text-3xl font-bold text-slate-900">
-                {{ currentSubscription.sessions_remaining }}
-              </p>
-              <p class="mt-1 text-sm font-medium text-slate-600">Sessions Remaining</p>
-              <p class="mt-2 text-xs text-slate-500">Keep learning!</p>
-            </div>
-          </UCard>
-
-          <!-- Total Sessions -->
-          <UCard class="group transition-all duration-300">
-            <div class="p-6">
-              <div class="mb-4 flex items-center justify-between">
-                <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-slate-100">
-                  <UIcon name="i-heroicons-clipboard-document-list" class="h-7 w-7 text-slate-600" />
-                </div>
-              </div>
-              <p class="text-3xl font-bold text-slate-900">
-                {{ currentSubscription.sessions_total }}
-              </p>
-              <p class="mt-1 text-sm font-medium text-slate-600">Total Sessions</p>
-              <p class="mt-2 text-xs text-slate-500">In your package</p>
-            </div>
-          </UCard>
-
-          <!-- Postpones Remaining -->
-          <UCard class="group transition-all duration-300">
-            <div class="p-6">
-              <div class="mb-4 flex items-center justify-between">
-                <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-amber-100">
-                  <UIcon name="i-heroicons-arrow-path" class="h-7 w-7 text-amber-600" />
-                </div>
-              </div>
-              <p class="text-3xl font-bold text-amber-600">
-                {{ currentSubscription.postpone_remaining }}
-              </p>
-              <p class="mt-1 text-sm font-medium text-slate-600">Postpones Left</p>
-              <p class="mt-2 text-xs text-slate-500">Reschedule options</p>
-            </div>
-          </UCard>
-
-          <!-- Weeks Total -->
-          <UCard class="group transition-all duration-300">
-            <div class="p-6">
-              <div class="mb-4 flex items-center justify-between">
-                <div class="flex h-14 w-14 items-center justify-center rounded-xl bg-blue-100">
-                  <UIcon name="i-heroicons-calendar" class="h-7 w-7 text-blue-600" />
-                </div>
-              </div>
-              <p class="text-3xl font-bold text-slate-900">
-                {{ currentSubscription.weeks_total }}
-              </p>
-              <p class="mt-1 text-sm font-medium text-slate-600">Total Weeks</p>
-              <p class="mt-2 text-xs text-slate-500">Learning duration</p>
-            </div>
-          </UCard>
-        </div>
+        <SubscriptionCard
+          :subscription="currentSubscription"
+          variant="hero"
+          :show-actions="false"
+        />
 
         <!-- Status Action Card -->
         <UCard class="mb-6">
