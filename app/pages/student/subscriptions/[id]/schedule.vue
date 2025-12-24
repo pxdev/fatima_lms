@@ -209,18 +209,6 @@ function getWeekSlotsCount(weekId: string): number {
   return allSlots.value.filter(slot => slot.week === weekId).length
 }
 
-/**
- * Calculate slot duration in minutes
- */
-function getSlotDuration(startTime: string, endTime: string): number {
-  const start = parseTime(startTime)
-  const end = parseTime(endTime)
-  const startMinutes = start.hours * 60 + start.minutes
-  const endMinutes = end.hours * 60 + end.minutes
-  return endMinutes - startMinutes
-}
-
-
 // ========== Week Status Functions ==========
 
 /**
@@ -737,9 +725,9 @@ onMounted(async () => {
                   <div
                     class="relative flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all duration-200"
                     :class="{
-                      'border-primary-500 bg-primary-500 text-white shadow-lg scale-110': selectedWeekIndex === i && getWeekStatus(i) === 'incomplete',
-                      'border-green-500 bg-green-500 text-white shadow-lg': getWeekStatus(i) === 'complete' || getWeekStatus(i) === 'approved',
-                      'border-amber-500 bg-amber-500 text-white shadow-lg': getWeekStatus(i) === 'submitted',
+                      'border-primary-500 bg-primary-500 text-white scale-110': selectedWeekIndex === i && getWeekStatus(i) === 'incomplete',
+                      'border-green-500 bg-green-500 text-white': getWeekStatus(i) === 'complete' || getWeekStatus(i) === 'approved',
+                      'border-amber-500 bg-amber-500 text-white': getWeekStatus(i) === 'submitted',
                       'border-slate-300 bg-white text-slate-400 hover:border-primary-300 hover:bg-slate-50': selectedWeekIndex !== i && getWeekStatus(i) === 'incomplete'
                     }"
                   >
@@ -803,7 +791,8 @@ onMounted(async () => {
             </template>
 
             <div class="flex justify-center">
-              <UCalendar 
+              <UCalendar
+                
                 v-model="selectedDate as any"
                 :min="minDate"
                 class="w-full"
@@ -860,73 +849,70 @@ onMounted(async () => {
                 Select a time slot to schedule your session:
               </p>
               
-              <div
+              <UCard
                 v-for="(slot, index) in availableSlotsForSelectedDate"
                 :key="index"
-                class="group relative flex items-center justify-between rounded-xl border-2 p-4 transition-all duration-200 shadow-sm"
                 :class="[
+                  'group relative cursor-pointer transition-all duration-200',
                   isSlotAlreadyTaken(selectedDate as DateValue, slot.start_time, slot.end_time)
-                    ? 'border-slate-200 bg-slate-100 opacity-50 cursor-not-allowed'
+                    ? 'opacity-50 cursor-not-allowed'
                     : selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time
-                    ? 'border-primary-500 bg-primary-50 shadow-md scale-[1.02] ring-2 ring-primary-200'
-                    : 'border-slate-200 hover:border-primary-300 hover:bg-slate-50 hover:shadow-md hover:scale-[1.01] cursor-pointer'
+                    ? 'ring-2 ring-primary-500 scale-[1.02]'
+                    : 'hover:ring-2 hover:ring-primary-300 hover:scale-[1.01]'
                 ]"
                 @click="!isSlotAlreadyTaken(selectedDate as DateValue, slot.start_time, slot.end_time) && selectSlot(slot)"
               >
-                <div class="flex items-center gap-4 flex-1">
-                  <!-- Time Icon with Duration -->
-                  <div class="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-green-100 to-green-50 group-hover:from-green-200 group-hover:to-green-100 transition-all duration-200">
-                    <UIcon name="i-heroicons-clock" class="h-8 w-8 text-green-600" />
-                    <div class="absolute -bottom-1 -right-1 rounded-full bg-white border-2 border-green-500 px-1.5 py-0.5">
-                      <span class="text-[10px] font-bold text-green-600">
-                        {{ getSlotDuration(slot.start_time, slot.end_time) }}m
-                      </span>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4 flex-1">
+                    <!-- Time Icon -->
+                    <div class="relative flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br from-green-100 to-green-50 group-hover:from-green-200 group-hover:to-green-100 transition-all duration-200">
+                      <UIcon name="i-heroicons-clock" class="h-8 w-8 text-green-600" />
+                    </div>
+                    
+                    <!-- Slot Info -->
+                    <div class="flex-1">
+                      <div class="flex items-baseline gap-2">
+                        <p class="text-xl font-bold text-slate-900">
+                          {{ formatTime(slot.start_time) }}
+                        </p>
+                        <UIcon name="i-heroicons-arrow-right" class="h-4 w-4 text-slate-400" />
+                        <p class="text-xl font-bold text-slate-900">
+                          {{ formatTime(slot.end_time) }}
+                        </p>
+                      </div>
+                      <div class="flex items-center gap-2 mt-1">
+                        <UIcon name="i-heroicons-calendar" class="h-4 w-4 text-slate-400" />
+                        <p class="text-sm text-slate-500">
+                          {{ getSelectedWeekday() }}
+                        </p>
+                      </div>
+                      <p 
+                        v-if="isSlotAlreadyTaken(selectedDate as DateValue, slot.start_time, slot.end_time)"
+                        class="text-xs text-amber-600 font-medium mt-1.5 flex items-center gap-1"
+                      >
+                        <UIcon name="i-heroicons-exclamation-triangle" class="h-3 w-3" />
+                        Already scheduled in Week {{ getSlotWeekNumber(selectedDate as DateValue, slot.start_time, slot.end_time) }}
+                      </p>
                     </div>
                   </div>
-                  
-                  <!-- Slot Info -->
-                  <div class="flex-1">
-                    <div class="flex items-baseline gap-2">
-                      <p class="text-xl font-bold text-slate-900">
-                        {{ formatTime(slot.start_time) }}
-                      </p>
-                      <UIcon name="i-heroicons-arrow-right" class="h-4 w-4 text-slate-400" />
-                      <p class="text-xl font-bold text-slate-900">
-                        {{ formatTime(slot.end_time) }}
-                      </p>
-                    </div>
-                    <div class="flex items-center gap-2 mt-1">
-                      <UIcon name="i-heroicons-calendar" class="h-4 w-4 text-slate-400" />
-                      <p class="text-sm text-slate-500">
-                        {{ getSelectedWeekday() }}
-                      </p>
-                    </div>
-                    <p 
-                      v-if="isSlotAlreadyTaken(selectedDate as DateValue, slot.start_time, slot.end_time)"
-                      class="text-xs text-amber-600 font-medium mt-1.5 flex items-center gap-1"
-                    >
-                      <UIcon name="i-heroicons-exclamation-triangle" class="h-3 w-3" />
-                      Already scheduled in Week {{ getSlotWeekNumber(selectedDate as DateValue, slot.start_time, slot.end_time) }}
-                    </p>
-                  </div>
-                </div>
 
-                <!-- Enhanced Selection indicator -->
-                <div
-                  class="flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-200 shadow-sm"
-                  :class="[
-                    selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time
-                      ? 'border-primary-500 bg-primary-500 scale-110 ring-2 ring-primary-200'
-                      : 'border-slate-300 bg-white group-hover:border-primary-300'
-                  ]"
-                >
-                  <UIcon
-                    v-if="selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time"
-                    name="i-heroicons-check"
-                    class="h-5 w-5 text-white animate-in zoom-in duration-200"
-                  />
+                  <!-- Enhanced Selection indicator -->
+                  <div
+                    class="flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all duration-200"
+                    :class="[
+                      selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time
+                        ? 'border-primary-500 bg-primary-500 scale-110 ring-2 ring-primary-200'
+                        : 'border-slate-300 bg-white group-hover:border-primary-300'
+                    ]"
+                  >
+                    <UIcon
+                      v-if="selectedSlot?.start_time === slot.start_time && selectedSlot?.end_time === slot.end_time"
+                      name="i-heroicons-check"
+                      class="h-5 w-5 text-white animate-in zoom-in duration-200"
+                    />
+                  </div>
                 </div>
-              </div>
+              </UCard>
 
               <!-- Enhanced Add Slot Button -->
               <div v-if="currentWeek?.status === 'draft'" class="pt-4">
@@ -938,7 +924,7 @@ onMounted(async () => {
                   block
                   :disabled="!selectedSlot || isSaving || slots.length >= requiredSlots"
                   :loading="isSaving"
-                  class="shadow-lg hover:shadow-xl transition-all duration-200 font-semibold"
+                  class="transition-all duration-200 font-semibold"
                   @click="handleAddSlot"
                 >
                   <UIcon name="i-heroicons-plus-circle" class="mr-2 h-5 w-5" />
@@ -1007,36 +993,38 @@ onMounted(async () => {
               tag="div"
               class="space-y-3"
             >
-              <div
+              <UCard
                 v-for="slot in slots"
                 :key="slot.id"
-                class="group flex items-center justify-between rounded-xl border-2 border-slate-200 bg-gradient-to-r from-white to-slate-50 p-4 shadow-sm hover:shadow-md transition-all duration-200 hover:border-primary-200"
+                class="group transition-all duration-200 hover:ring-2 hover:ring-primary-200"
               >
-                <div class="flex items-center gap-4 flex-1">
-                  <div class="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 group-hover:from-primary-200 group-hover:to-primary-100 transition-all duration-200">
-                    <UIcon name="i-heroicons-clock" class="h-7 w-7 text-primary-600" />
-                    <div class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-500 text-white">
-                      <span class="text-[10px] font-bold">{{ slots.indexOf(slot) + 1 }}</span>
+                <div class="flex items-center justify-between">
+                  <div class="flex items-center gap-4 flex-1">
+                    <div class="relative flex h-14 w-14 items-center justify-center rounded-xl bg-gradient-to-br from-primary-100 to-primary-50 group-hover:from-primary-200 group-hover:to-primary-100 transition-all duration-200">
+                      <UIcon name="i-heroicons-clock" class="h-7 w-7 text-primary-600" />
+                      <div class="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-primary-500 text-white">
+                        <span class="text-[10px] font-bold">{{ slots.indexOf(slot) + 1 }}</span>
+                      </div>
+                    </div>
+                    <div class="flex-1">
+                      <p class="text-lg font-bold text-slate-900">{{ formatSlotTime(slot) }}</p>
+                      <p v-if="slot.note" class="text-sm text-slate-500 mt-0.5">{{ slot.note }}</p>
                     </div>
                   </div>
-                  <div class="flex-1">
-                    <p class="text-lg font-bold text-slate-900">{{ formatSlotTime(slot) }}</p>
-                    <p v-if="slot.note" class="text-sm text-slate-500 mt-0.5">{{ slot.note }}</p>
-                  </div>
+                  <UButton
+                    v-if="currentWeek?.status === 'draft'"
+                    variant="outline"
+                    color="error"
+                    size="xl"
+                    class="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
+                    :loading="deletingSlotId === slot.id"
+                    :disabled="isDeleting"
+                    @click="handleDeleteSlot(slot.id)"
+                  >
+                    <UIcon name="i-heroicons-trash" class="h-5 w-5" />
+                  </UButton>
                 </div>
-                <UButton
-                  v-if="currentWeek?.status === 'draft'"
-                  variant="outline"
-                  color="error"
-                  size="xl"
-                  class="opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                  :loading="deletingSlotId === slot.id"
-                  :disabled="isDeleting"
-                  @click="handleDeleteSlot(slot.id)"
-                >
-                  <UIcon name="i-heroicons-trash" class="h-5 w-5" />
-                </UButton>
-              </div>
+              </UCard>
             </TransitionGroup>
           </div>
 
