@@ -40,6 +40,15 @@ const package_ = computed(() => getSubscriptionPackage(props.subscription))
 const progress = computed(() => getSessionsProgress(props.subscription))
 const statusConfig = computed(() => getStatusConfig(props.subscription.status))
 
+// Get teacher display name
+const teacherDisplayName = computed(() => {
+  if (!props.subscription.teacher) return null
+  if (typeof props.subscription.teacher === 'object' && props.subscription.teacher !== null) {
+    return (props.subscription.teacher as any).display_name || null
+  }
+  return null
+})
+
 function handleClick() {
   emit('click', props.subscription)
   if (props.expandable) {
@@ -60,11 +69,14 @@ function handleActionClick(e: Event) {
     class="group transition-all duration-300"
     @click="handleClick"
   >
+
+  
+
     <div class="space-y-4">
       <!-- Header -->
-      <div class="flex items-start justify-between">
+      <div class="flex items-start justify-between gap-3">
         <div class="flex-1 min-w-0">
-          <div class="flex items-center gap-2 mb-1">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
             <h3 class="text-base font-semibold text-slate-900 truncate">
               {{ course?.label || 'Course' }}
             </h3>
@@ -79,44 +91,57 @@ function handleActionClick(e: Event) {
           <p class="text-sm text-slate-600 truncate">
             {{ package_?.label || 'Package' }}
           </p>
+          <!-- Teacher and Subscription ID -->
+          <div class="mt-2 space-y-1.5">
+            <div v-if="teacherDisplayName" class="flex items-center gap-1.5 text-xs text-slate-500">
+              <UIcon name="hugeicons:user-02" class="h-3.5 w-3.5 flex-shrink-0" />
+              <span class="truncate">{{ teacherDisplayName }}</span>
+            </div>
+            <div class="flex items-center gap-1.5 text-xs">
+              <UIcon name="hugeicons:tag-01" class="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+              <span class="font-mono text-[10px] sm:text-xs text-slate-600 break-all">{{ subscription.id }}</span>
+            </div>
+          </div>
         </div>
         <UButton
           variant="ghost"
           color="info"
           size="sm"
+          square
+          class="flex-shrink-0"
           :to="`/student/subscriptions/${subscription.id}`"
           @click="handleActionClick"
         >
-          <UIcon name="i-heroicons-arrow-right" class="h-4 w-4" />
+          <UIcon name="hugeicons:arrow-right-01" class="h-4 w-4" />
         </UButton>
       </div>
 
-      <!-- Progress -->
-      <div>
-        <div class="mb-1.5 flex justify-between text-xs">
-          <span class="text-slate-600">Progress</span>
-          <span class="font-medium text-slate-900">
+      <!-- Course Progress -->
+      <div class="space-y-2">
+        <div class="flex items-center justify-between gap-2">
+          <span class="text-xs font-medium text-slate-700">Course Progress</span>
+          <span class="text-xs font-semibold text-slate-900 whitespace-nowrap">
             {{ progress.completed }}/{{ progress.total }}
           </span>
         </div>
-        <div class="h-1.5 overflow-hidden rounded-full bg-slate-100">
-          <div
-            class="h-full rounded-full bg-primary-500 transition-all duration-500"
-            :style="{ width: `${progress.percentage}%` }"
-          />
-        </div>
+        <UProgress
+          v-model="progress.completed"
+          :max="progress.total"
+          color="primary"
+          size="sm"
+        />
       </div>
 
       <!-- Quick Stats -->
-      <div class="flex gap-3 text-xs">
-        <div class="flex items-center gap-1.5">
-          <UIcon name="i-heroicons-book-open" class="h-3.5 w-3.5 text-primary-600" />
-          <span class="text-slate-500">Left:</span>
+      <div class="flex flex-wrap gap-2 sm:gap-3 text-xs">
+        <div class="flex items-center gap-1.5 min-w-0 flex-1 sm:flex-initial">
+          <UIcon name="hugeicons:video-01" class="h-4 w-4 text-primary-600 flex-shrink-0" />
+          <span class="text-slate-500 whitespace-nowrap">Left:</span>
           <span class="font-semibold text-slate-900">{{ subscription.sessions_remaining }}</span>
         </div>
-        <div class="flex items-center gap-1.5">
-          <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5 text-amber-600" />
-          <span class="text-slate-500">Postpones:</span>
+        <div class="flex items-center gap-1.5 min-w-0 flex-1 sm:flex-initial">
+          <UIcon name="hugeicons:arrow-path" class="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <span class="text-slate-500 whitespace-nowrap">Postpones:</span>
           <span class="font-semibold text-amber-600">{{ subscription.postpone_remaining }}</span>
         </div>
       </div>
@@ -128,11 +153,12 @@ function handleActionClick(e: Event) {
         size="sm"
         :color="subscription.status === 'draft' ? 'warning' : 'primary'"
         :variant="subscription.status === 'draft' ? 'solid' : 'outline'"
+        class="min-h-[44px]"
         :to="`/student/subscriptions/${subscription.id}`"
         @click="handleActionClick"
       >
         <UIcon
-          :name="subscription.status === 'draft' ? 'i-heroicons-credit-card' : 'i-heroicons-eye'"
+          :name="subscription.status === 'draft' ? 'hugeicons:credit-card-02' : 'hugeicons:eye'"
           class="mr-1.5 h-4 w-4"
         />
         {{ subscription.status === 'draft' ? 'Pay Now' : 'View Details' }}
@@ -148,113 +174,123 @@ function handleActionClick(e: Event) {
     @click="handleClick"
   >
     <!-- Main Content -->
-    <div class="flex items-start gap-4">
-      <!-- Status Icon -->
-      <div
-        class="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl transition-transform duration-300"
-        :class="[
-          statusConfig.bg,
-          isExpanded && props.expandable ? 'scale-110' : 'group-hover:scale-105'
-        ]"
-      >
-        <UIcon
-          :name="statusConfig.icon"
-          class="h-7 w-7"
-          :class="`text-${statusConfig.color}-600`"
-        />
-      </div>
+    <div class="">
+      <div class="flex flex-col sm:flex-row items-start gap-4">
+        <!-- Status Icon -->
+        <div
+          class="flex h-12 w-12 sm:h-14 sm:w-14 flex-shrink-0 items-center justify-center rounded-xl transition-transform duration-300 mx-auto sm:mx-0"
+          :class="[
+            statusConfig.bg,
+            isExpanded && props.expandable ? 'scale-110' : 'group-hover:scale-105'
+          ]"
+        >
+          <UIcon
+            :name="statusConfig.icon"
+            class="h-6 w-6 sm:h-7 sm:w-7"
+            :class="`text-${statusConfig.color}-600`"
+          />
+        </div>
 
-      <!-- Content -->
-      <div class="flex-1 min-w-0">
-        <div class="flex items-start justify-between gap-4">
-          <div class="flex-1 min-w-0">
-            <div class="flex items-center gap-2 flex-wrap mb-1">
-              <h3 class="text-lg font-semibold text-slate-900">
-                {{ course?.label || 'Course' }}
-              </h3>
-              <UBadge
-                :color="getStatusColor(subscription.status) as any"
-                variant="soft"
+        <!-- Content -->
+        <div class="flex-1 min-w-0 w-full">
+          <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+            <div class="flex-1 min-w-0">
+              <div class="flex flex-wrap items-center gap-2 mb-2">
+                <h3 class="text-base sm:text-lg font-semibold text-slate-900">
+                  {{ course?.label || 'Course' }}
+                </h3>
+                <UBadge
+                  :color="getStatusColor(subscription.status) as any"
+                  variant="soft"
+                  size="sm"
+                >
+                  {{ statusConfig.label }}
+                </UBadge>
+              </div>
+              <p class="text-sm text-slate-600">
+                {{ package_?.label || 'Package' }}
+              </p>
+              <!-- Teacher and Subscription ID -->
+              <div class="mt-2 space-y-1.5">
+                <div v-if="teacherDisplayName" class="flex items-center gap-1.5 text-xs text-slate-500">
+                  <UIcon name="hugeicons:user-02" class="h-3.5 w-3.5 flex-shrink-0" />
+                  <span class="truncate">{{ teacherDisplayName }}</span>
+                </div>
+                <div class="flex items-start gap-1.5 text-xs">
+                  <UIcon name="hugeicons:tag-01" class="h-3.5 w-3.5 text-slate-400 flex-shrink-0 mt-0.5" />
+                  <span class="font-mono text-[10px] sm:text-xs text-slate-600 break-all">{{ subscription.id }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Action Button -->
+            <div class="flex items-center gap-2 self-start sm:self-auto w-full sm:w-auto">
+              <UButton
+                :color="subscription.status === 'draft' ? 'warning' : 'primary'"
+                :variant="subscription.status === 'draft' ? 'solid' : 'outline'"
                 size="sm"
+                class="flex-1 sm:flex-initial"
+                @click="handleActionClick"
+                :to="`/student/subscriptions/${subscription.id}`"
               >
-                {{ statusConfig.label }}
-              </UBadge>
+                <UIcon
+                  :name="subscription.status === 'draft' ? 'hugeicons:credit-card-02' : 'hugeicons:arrow-right-01'"
+                  class="h-4 w-4"
+                />
+                <span class="hidden sm:inline">
+                  {{ subscription.status === 'draft' ? 'Pay' : 'Manage' }}
+                </span>
+              </UButton>
+              <!-- Expand Icon -->
+              <UButton
+                v-if="expandable"
+                variant="ghost"
+                color="neutral"
+                size="sm"
+                square
+                @click.stop="handleClick"
+              >
+                <UIcon
+                  name="hugeicons:arrow-down-01"
+                  class="h-5 w-5 text-slate-400 transition-transform duration-300"
+                  :class="{ 'rotate-180': isExpanded }"
+                />
+              </UButton>
             </div>
-            <p class="text-sm text-slate-600">
-              {{ package_?.label || 'Package' }}
-            </p>
           </div>
 
-          <!-- Action Button -->
-          <UButton
-            :color="subscription.status === 'draft' ? 'warning' : 'primary'"
-            :variant="subscription.status === 'draft' ? 'solid' : 'outline'"
-            size="sm"
-            @click="handleActionClick"
-            :to="`/student/subscriptions/${subscription.id}`"
-          >
-            <UIcon
-              :name="subscription.status === 'draft' ? 'i-heroicons-banknotes' : 'i-heroicons-arrow-right'"
-              class="h-4 w-4"
-            />
-          </UButton>
+          <!-- Quick Stats -->
+          <div class="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
+            <div class="flex flex-col items-center sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <div class="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-primary-200 flex-shrink-0">
+                <UIcon name="hugeicons:video-01" class="h-5 w-5 text-primary-600" />
+              </div>
+              <div class="text-center sm:text-left min-w-0">
+                <p class="text-xs text-slate-500 truncate">Remaining</p>
+                <p class="font-semibold text-slate-900">{{ subscription.sessions_remaining }}</p>
+              </div>
+            </div>
+            <div class="flex flex-col items-center sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <div class="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-amber-50 flex-shrink-0">
+                <UIcon name="hugeicons:clock-05" class="h-5 w-5 text-amber-600" />
+              </div>
+              <div class="text-center sm:text-left min-w-0">
+                <p class="text-xs text-slate-500 truncate">Postpones</p>
+                <p class="text-sm font-semibold text-amber-600">{{ subscription.postpone_remaining }}</p>
+              </div>
+            </div>
+            <div class="flex flex-col items-center sm:flex-row sm:items-center gap-1 sm:gap-2">
+              <div class="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-lg bg-blue-50 flex-shrink-0">
+                <UIcon name="hugeicons:calendar-02" class="h-5 w-5 text-blue-600" />
+              </div>
+              <div class="text-center sm:text-left min-w-0">
+                <p class="text-xs text-slate-500 truncate">Weeks</p>
+                <p class="text-sm font-semibold text-slate-900">{{ subscription.weeks_total }}</p>
+              </div>
+            </div>
+          </div>
+
         </div>
-
-        <!-- Quick Stats -->
-        <div class="mt-3 grid grid-cols-3 gap-3">
-          <div class="flex items-center gap-2">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-50">
-              <UIcon name="i-heroicons-book-open" class="h-4 w-4 text-primary-600" />
-            </div>
-            <div>
-              <p class="text-xs text-slate-500">Remaining</p>
-              <p class="text-sm font-semibold text-slate-900">{{ subscription.sessions_remaining }}</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
-              <UIcon name="i-heroicons-arrow-path" class="h-4 w-4 text-amber-600" />
-            </div>
-            <div>
-              <p class="text-xs text-slate-500">Postpones</p>
-              <p class="text-sm font-semibold text-amber-600">{{ subscription.postpone_remaining }}</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50">
-              <UIcon name="i-heroicons-calendar" class="h-4 w-4 text-blue-600" />
-            </div>
-            <div>
-              <p class="text-xs text-slate-500">Weeks</p>
-              <p class="text-sm font-semibold text-slate-900">{{ subscription.weeks_total }}</p>
-            </div>
-          </div>
-        </div>
-
-        <!-- Progress Bar -->
-        <div class="mt-4">
-          <div class="mb-1.5 flex items-center justify-between text-xs">
-            <span class="text-slate-600">Sessions Progress</span>
-            <span class="font-semibold text-slate-900">
-              {{ progress.completed }} / {{ progress.total }} ({{ progress.percentage }}%)
-            </span>
-          </div>
-          <div class="h-2 overflow-hidden rounded-full bg-slate-200">
-            <div
-              class="h-full rounded-full bg-primary-600 transition-all duration-700 ease-out"
-              :style="{ width: `${progress.percentage}%` }"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Expand Icon -->
-      <div v-if="expandable" class="flex-shrink-0">
-        <UIcon
-          name="i-heroicons-chevron-down"
-          class="h-5 w-5 text-slate-400 transition-transform duration-300"
-          :class="{ 'rotate-180': isExpanded }"
-        />
       </div>
     </div>
 
@@ -262,36 +298,84 @@ function handleActionClick(e: Event) {
     <div
       v-if="expandable"
       v-show="isExpanded"
-      class="mt-4 border-t border-slate-200 pt-4"
+      class="pt-6 mt-10 sm:pt-7 px-4 sm:px-5 pb-4 sm:pb-5 bg-slate-50/60 border-t border-slate-200"
     >
+      <!-- Top row: progress summary -->
+      <div class="mb-4 sm:mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Overall Progress</p>
+          <p class="mt-1 text-sm sm:text-base font-semibold text-slate-900">
+            {{ progress.completed }} of {{ progress.total }} sessions completed
+          </p>
+        </div>
+        <div class="w-full sm:w-56">
+          <div class="flex items-center justify-between text-xs text-slate-500 mb-1">
+            <span>Progress</span>
+            <span class="font-semibold text-slate-900">{{ progress.percentage }}%</span>
+          </div>
+          <UProgress
+            v-model="progress.completed"
+            :max="progress.total"
+            color="primary"
+            size="md"
+          />
+        </div>
+      </div>
+
+      <!-- Details grid -->
       <div class="grid gap-4 sm:grid-cols-2">
         <!-- Course Details -->
-        <div class="space-y-2">
+        <div class="space-y-3">
           <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Course Details</p>
-          <div class="space-y-1">
-            <p class="text-sm text-slate-900">
-              <span class="font-medium">Course:</span> {{ course?.label || 'N/A' }}
-            </p>
-            <p class="text-sm text-slate-600">
-              <span class="font-medium">Package:</span> {{ package_?.label || 'N/A' }}
-            </p>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex items-start justify-between gap-3">
+              <span class="text-slate-500">Course</span>
+              <span class="font-semibold text-slate-900 text-right">
+                {{ course?.label || 'N/A' }}
+              </span>
+            </div>
+            <div class="flex items-start justify-between gap-3">
+              <span class="text-slate-500">Package</span>
+              <span class="font-semibold text-slate-900 text-right">
+                {{ package_?.label || 'N/A' }}
+              </span>
+            </div>
+            <div
+              v-if="teacherDisplayName"
+              class="flex items-start justify-between gap-3"
+            >
+              <span class="text-slate-500">Teacher</span>
+              <span class="font-semibold text-slate-900 text-right">
+                {{ teacherDisplayName }}
+              </span>
+            </div>
           </div>
         </div>
 
         <!-- Subscription Stats -->
-        <div class="space-y-2">
+        <div class="space-y-3">
           <p class="text-xs font-medium text-slate-500 uppercase tracking-wide">Statistics</p>
-          <div class="space-y-1 text-sm">
-            <div class="flex justify-between">
-              <span class="text-slate-600">Total Sessions:</span>
-              <span class="font-semibold text-slate-900">{{ subscription.sessions_total }}</span>
+          <div class="space-y-1.5 text-sm">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-slate-500">Total Sessions</span>
+              <span class="font-semibold text-slate-900">
+                {{ subscription.sessions_total }}
+              </span>
             </div>
-            <div class="flex justify-between">
-              <span class="text-slate-600">Sessions Completed:</span>
-              <span class="font-semibold text-green-600">{{ progress.completed }}</span>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-slate-500">Completed</span>
+              <span class="font-semibold text-green-600">
+                {{ progress.completed }}
+              </span>
             </div>
-            <div class="flex justify-between">
-              <span class="text-slate-600">Postpones Used:</span>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-slate-500">Remaining</span>
+              <span class="font-semibold text-slate-900">
+                {{ subscription.sessions_remaining }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-slate-500">Postpones Used</span>
               <span class="font-semibold text-amber-600">
                 {{ subscription.postpone_total - subscription.postpone_remaining }}
               </span>
@@ -301,30 +385,36 @@ function handleActionClick(e: Event) {
       </div>
 
       <!-- Action Buttons -->
-      <div v-if="showActions" class="mt-4 flex gap-2">
+      <div v-if="showActions" class="mt-4 flex flex-col sm:flex-row gap-2">
         <UButton
           block
           :color="subscription.status === 'draft' ? 'warning' : 'primary'"
           :variant="subscription.status === 'draft' ? 'solid' : 'outline'"
+          size="sm"
+          class="min-h-[44px]"
           :to="`/student/subscriptions/${subscription.id}`"
           @click="handleActionClick"
         >
           <UIcon
-            :name="subscription.status === 'draft' ? 'i-heroicons-banknotes' : 'i-heroicons-eye'"
+            :name="subscription.status === 'draft' ? 'hugeicons:credit-card-02' : 'hugeicons:eye'"
             class="mr-2 h-4 w-4"
           />
-          {{ subscription.status === 'draft' ? 'Complete Payment' : 'View Full Details' }}
+          <span class="hidden sm:inline">{{ subscription.status === 'draft' ? 'Complete Payment' : 'View Full Details' }}</span>
+          <span class="sm:hidden">{{ subscription.status === 'draft' ? 'Pay' : 'Manage' }}</span>
         </UButton>
         <UButton
           v-if="['active', 'teacher_assigned'].includes(subscription.status)"
           block
           variant="outline"
           color="neutral"
+          size="sm"
+          class="min-h-[44px]"
           :to="`/student/subscriptions/${subscription.id}/sessions`"
           @click="handleActionClick"
         >
-          <UIcon name="i-heroicons-video-camera" class="mr-2 h-4 w-4" />
-          View Sessions
+          <UIcon name="hugeicons:video-02" class="mr-2 h-4 w-4" />
+          <span class="hidden sm:inline">View Sessions</span>
+          <span class="sm:hidden">Sessions</span>
         </UButton>
       </div>
     </div>
@@ -333,31 +423,46 @@ function handleActionClick(e: Event) {
   <!-- Hero Variant (for subscription detail page) -->
   <div v-else-if="variant === 'hero'">
     <!-- Hero Header Card -->
-    <UCard class="mb-6">
-      <div class="bg-gradient-to-br from-primary-600 to-primary-700 p-8 text-white">
-        <div class="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
-          <div class="flex-1">
-            <div class="mb-3">
+    <UCard class="mb-4 sm:mb-6">
+      <div class="bg-gradient-to-br from-primary-600 to-primary-700 p-4 sm:p-6 md:p-8 text-white">
+        <div class="flex flex-col gap-4 sm:gap-6 md:flex-row md:items-center md:justify-between">
+          <div class="flex-1 min-w-0">
+            <div class="mb-2 sm:mb-3">
               <UBadge
                 :color="getStatusColor(subscription.status) as any"
                 variant="solid"
-                size="lg"
+                size="sm"
+                class="sm:size-lg"
               >
                 {{ statusConfig.label }}
               </UBadge>
             </div>
-            <h1 class="mb-2 text-3xl font-bold md:text-4xl">
+            <h1 class="mb-2 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold break-words">
               {{ course?.label || 'Course' }}
             </h1>
-            <p class="text-lg text-primary-100">
+            <p class="text-sm sm:text-base md:text-lg text-primary-200 break-words">
               {{ package_?.label || 'Package' }}
             </p>
+            <!-- Teacher and Subscription ID -->
+            <div class="mt-3 space-y-2">
+              <div v-if="teacherDisplayName" class="flex items-center gap-1.5 text-xs sm:text-sm text-primary-200">
+                <UIcon name="hugeicons:user-02" class="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span class="truncate">{{ teacherDisplayName }}</span>
+              </div>
+              <div class="flex items-start gap-1.5 text-xs sm:text-sm">
+                <UIcon name="hugeicons:tag-01" class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-200 flex-shrink-0 mt-0.5" />
+                <div class="flex-1 min-w-0">
+                  <span class="text-primary-200 font-medium">ID: </span>
+                  <span class="font-mono text-[10px] sm:text-xs text-white break-all">{{ subscription.id }}</span>
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Progress Circle -->
-          <div class="flex items-center justify-center">
+          <div class="flex items-center justify-center mt-2 sm:mt-4 md:mt-0 flex-shrink-0">
             <div class="relative">
-              <svg class="h-24 w-24 transform -rotate-90" viewBox="0 0 100 100">
+              <svg class="h-20 w-20 sm:h-24 sm:w-24 transform -rotate-90" viewBox="0 0 100 100">
                 <circle
                   cx="50"
                   cy="50"
@@ -379,94 +484,100 @@ function handleActionClick(e: Event) {
                 />
               </svg>
               <div class="absolute inset-0 flex flex-col items-center justify-center">
-                <span class="text-2xl font-bold">{{ progress.percentage }}%</span>
-                <span class="text-xs text-primary-100">Complete</span>
+                <span class="text-xl sm:text-2xl font-bold">{{ progress.percentage }}%</span>
+                <span class="text-xs text-primary-200">Complete</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Progress Bar Section -->
-      <div class="p-6">
-        <div class="mb-2 flex items-center justify-between">
-          <span class="text-sm font-medium text-slate-600">Sessions Progress</span>
-          <span class="text-sm font-semibold text-slate-900">
-            {{ progress.completed }} / {{ progress.total }} sessions
-          </span>
-        </div>
-        <div class="h-3 overflow-hidden rounded-full bg-slate-200">
-          <div
-            class="h-full rounded-full bg-primary-600 transition-all duration-500 ease-out"
-            :style="{ width: `${progress.percentage}%` }"
+      <!-- Course Progress Section -->
+      <div class="p-4 sm:p-6">
+        <div class="mb-3 space-y-3">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-sm sm:text-base font-semibold text-slate-700">Course Progress</span>
+            <span class="text-sm sm:text-base font-bold text-slate-900 whitespace-nowrap">
+              {{ progress.percentage }}%
+            </span>
+          </div>
+          <UProgress
+            v-model="progress.completed"
+            :max="progress.total"
+            color="primary"
+            size="lg"
           />
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-2 text-xs sm:text-sm text-slate-600">
+            <span>{{ progress.completed }} of {{ progress.total }} sessions completed</span>
+            <span class="font-medium whitespace-nowrap">{{ subscription.sessions_remaining }} remaining</span>
+          </div>
         </div>
       </div>
     </UCard>
 
     <!-- Stats Grid -->
-    <div class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="mb-4 sm:mb-6 grid gap-2 sm:gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
       <!-- Sessions Remaining -->
       <UCard class="group transition-all duration-300">
-        <div class="p-5">
-          <div class="mb-3 flex items-center justify-between">
-            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary-100">
-              <UIcon name="i-heroicons-book-open" class="h-6 w-6 text-primary-600" />
+        <div class="p-3 sm:p-4 md:p-5">
+          <div class="mb-2 sm:mb-3 flex items-center justify-center sm:justify-start">
+            <div class="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-primary-200">
+              <UIcon name="hugeicons:video-01" class="h-5 w-5 sm:h-6 sm:w-6 text-primary-600" />
             </div>
           </div>
-          <p class="text-2xl font-bold text-slate-900">
+          <p class="text-xl sm:text-2xl font-bold text-slate-900 text-center sm:text-left">
             {{ subscription.sessions_remaining }}
           </p>
-          <p class="mt-1 text-sm font-medium text-slate-600">Sessions Remaining</p>
-          <p class="mt-1 text-xs text-slate-500">Keep learning!</p>
+          <p class="mt-1 text-xs sm:text-sm font-medium text-slate-600 text-center sm:text-left break-words">Sessions Remaining</p>
+          <p class="mt-1 text-xs text-slate-500 text-center sm:text-left">Keep learning!</p>
         </div>
       </UCard>
 
       <!-- Total Sessions -->
       <UCard class="group transition-all duration-300">
-        <div class="p-5">
-          <div class="mb-3 flex items-center justify-between">
-            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100">
-              <UIcon name="i-heroicons-clipboard-document-list" class="h-6 w-6 text-slate-600" />
+        <div class="p-3 sm:p-4 md:p-5">
+          <div class="mb-2 sm:mb-3 flex items-center justify-center sm:justify-start">
+            <div class="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-slate-100">
+              <UIcon name="hugeicons:clipboard-check" class="h-5 w-5 sm:h-6 sm:w-6 text-slate-600" />
             </div>
           </div>
-          <p class="text-2xl font-bold text-slate-900">
+          <p class="text-xl sm:text-2xl font-bold text-slate-900 text-center sm:text-left">
             {{ subscription.sessions_total }}
           </p>
-          <p class="mt-1 text-sm font-medium text-slate-600">Total Sessions</p>
-          <p class="mt-1 text-xs text-slate-500">In your package</p>
+          <p class="mt-1 text-xs sm:text-sm font-medium text-slate-600 text-center sm:text-left break-words">Total Sessions</p>
+          <p class="mt-1 text-xs text-slate-500 text-center sm:text-left">In your package</p>
         </div>
       </UCard>
 
       <!-- Postpones Remaining -->
       <UCard class="group transition-all duration-300">
-        <div class="p-5">
-          <div class="mb-3 flex items-center justify-between">
-            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100">
-              <UIcon name="i-heroicons-arrow-path" class="h-6 w-6 text-amber-600" />
+        <div class="p-3 sm:p-4 md:p-5">
+          <div class="mb-2 sm:mb-3 flex items-center justify-center sm:justify-start">
+            <div class="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-amber-100">
+              <UIcon name="hugeicons:arrow-path" class="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
             </div>
           </div>
-          <p class="text-2xl font-bold text-amber-600">
+          <p class="text-xl sm:text-2xl font-bold text-amber-600 text-center sm:text-left">
             {{ subscription.postpone_remaining }}
           </p>
-          <p class="mt-1 text-sm font-medium text-slate-600">Postpones Left</p>
-          <p class="mt-1 text-xs text-slate-500">Reschedule options</p>
+          <p class="mt-1 text-xs sm:text-sm font-medium text-slate-600 text-center sm:text-left break-words">Postpones Left</p>
+          <p class="mt-1 text-xs text-slate-500 text-center sm:text-left">Reschedule options</p>
         </div>
       </UCard>
 
       <!-- Weeks Total -->
       <UCard class="group transition-all duration-300">
-        <div class="p-5">
-          <div class="mb-3 flex items-center justify-between">
-            <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-100">
-              <UIcon name="i-heroicons-calendar" class="h-6 w-6 text-blue-600" />
+        <div class="p-3 sm:p-4 md:p-5">
+          <div class="mb-2 sm:mb-3 flex items-center justify-center sm:justify-start">
+            <div class="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-blue-100">
+              <UIcon name="hugeicons:calendar-02" class="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
             </div>
           </div>
-          <p class="text-2xl font-bold text-slate-900">
+          <p class="text-xl sm:text-2xl font-bold text-slate-900 text-center sm:text-left">
             {{ subscription.weeks_total }}
           </p>
-          <p class="mt-1 text-sm font-medium text-slate-600">Total Weeks</p>
-          <p class="mt-1 text-xs text-slate-500">Learning duration</p>
+          <p class="mt-1 text-xs sm:text-sm font-medium text-slate-600 text-center sm:text-left break-words">Total Weeks</p>
+          <p class="mt-1 text-xs text-slate-500 text-center sm:text-left">Learning duration</p>
         </div>
       </UCard>
     </div>

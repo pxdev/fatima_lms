@@ -127,6 +127,7 @@ function isExpanded(subscriptionId: string) {
       <UButton
         color="primary"
         size="lg"
+        class="rounded-full"
         to="/student/subscribe"
       >
         <UIcon name="hugeicons:add-circle" class="mr-2 h-5 w-5" />

@@ -12,10 +12,10 @@ type SubscriptionStatus =
   | 'completed'
   | 'cancelled'
 
-interface Subscription {
+export interface Subscription {
   id: string
   student: string
-  teacher: string | null
+  teacher: string | null | { display_name: string }
   course: string | { id: string; label: string }
   package: string | { id: string; label: string }
   status: SubscriptionStatus
@@ -66,7 +66,7 @@ export function useSubscriptions() {
           fields: [
             'id',
             'student',
-            'teacher',
+            'teacher.display_name',
             'course.id',
             'course.label',
             'package.id',
@@ -111,7 +111,7 @@ export function useSubscriptions() {
           fields: [
             'id',
             'student',
-            'teacher',
+            'teacher.display_name',
             'course.id',
             'course.label',
             'package.id',
@@ -158,7 +158,7 @@ export function useSubscriptions() {
         }]
       })
 
-      if (data && data.length > 0) {
+      if (data && data.length > 0 && data[0]) {
         currentSubscription.value = data[0]
         return data[0]
       }
