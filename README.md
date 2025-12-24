@@ -10,9 +10,10 @@ Create a `.env` file in the root directory with the following variables:
 # Directus Configuration
 NUXT_PUBLIC_DIRECTUS_URL=your_directus_url_here
 
-# Directus Admin Token (for user registration)
+# Directus Admin Token (for user registration and server-side operations)
 # Generate this token from your Directus admin panel
-DIRECTUS_ADMIN_TOKEN=your_admin_token_here
+# Note: Must be prefixed with NUXT_ for Nuxt runtime config
+NUXT_DIRECTUS_ADMIN_TOKEN=your_admin_token_here
 ```
 
 ## Setup

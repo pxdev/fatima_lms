@@ -3,8 +3,6 @@
  * Creates a new availability rule with duplicate validation
  */
 
-import { createDirectus, rest, authentication, readItems, createItem } from '@directus/sdk'
-
 interface AvailabilityRule {
   id: string
   teacher: string
@@ -46,11 +44,6 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Initialize Directus client with admin token
-  const directus = createDirectus(config.public.directus.url)
-    .with(authentication())
-    .with(rest())
-
   if (!config.directusAdminToken) {
     throw createError({
       statusCode: 500,
@@ -58,18 +51,34 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  await directus.setToken(config.directusAdminToken)
+  if (!config.public.directus.url) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Server configuration error: Directus URL missing'
+    })
+  }
+
+  const directusUrl = config.public.directus.url
+  const adminToken = config.directusAdminToken
 
   try {
     // Check for existing duplicate rules
-    const existingRules = await directus.request(
-      readItems('teacher_availability_rules', {
-        filter: {
-          teacher: { _eq: body.teacher },
-          weekday: { _eq: body.weekday }
-        }
-      })
-    ) as AvailabilityRule[]
+    // Directus API requires filter to be JSON stringified in query params
+    const filter = JSON.stringify({
+      teacher: { _eq: body.teacher },
+      weekday: { _eq: body.weekday }
+    })
+    
+    const rulesResponse = await $fetch<{ data: AvailabilityRule[] }>(`${directusUrl}/items/teacher_availability_rules`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      params: {
+        filter
+      }
+    })
+    const existingRules = rulesResponse.data || []
 
     // Check if any existing rule has the same normalized times
     const normalizedStart = normalizeTime(body.start_time)
@@ -88,15 +97,20 @@ export default defineEventHandler(async (event) => {
     }
 
     // Create the new rule
-    const newRule = await directus.request(
-      createItem('teacher_availability_rules', {
+    const createResponse = await $fetch<{ data: AvailabilityRule }>(`${directusUrl}/items/teacher_availability_rules`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: {
         teacher: body.teacher,
         weekday: body.weekday,
         start_time: body.start_time,
         end_time: body.end_time,
         is_active: body.is_active ?? true
-      })
-    ) as AvailabilityRule
+      }
+    })
+    const newRule = createResponse.data
 
     return {
       success: true,

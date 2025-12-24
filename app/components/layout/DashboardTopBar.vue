@@ -85,6 +85,7 @@ const mainNavItems = computed(() => {
 </script>
 
 <template>
+   
   <header class="sticky top-0 z-50 border-b border-slate-200 bg-white">
     <div class="mx-auto flex h-20 items-center justify-between px-4 sm:px-6 lg:px-8">
       <!-- Logo -->

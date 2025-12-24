@@ -2,6 +2,7 @@
 import { z } from 'zod'
 
 const { login, loginWithProvider } = useDirectusAuth()
+const { fetchProfile } = useProfile()
 
 // ===============================
 // Validation Schema
@@ -41,6 +42,21 @@ const { execute: throttledGoogleLogin, isLoading: isGoogleLoading } = useThrottl
   { throttleMs: 1000 }
 )
 
+/**
+ * Get dashboard route based on user role
+ */
+function getDashboardRoute(role: string | undefined): string {
+  switch (role) {
+    case 'admin':
+      return '/admin/dashboard'
+    case 'teacher':
+      return '/teacher/dashboard'
+    case 'student':
+    default:
+      return '/student/dashboard'
+  }
+}
+
 async function doLogin() {
   errorMessage.value = ''
   successMessage.value = ''
@@ -50,7 +66,14 @@ async function doLogin() {
   try {
     await login({ email, password })
     successMessage.value = 'Login successful! Redirecting...'
-    await navigateTo('/student/dashboard', { replace: true })
+    
+    // Fetch profile to get user role
+    await nextTick() // Wait for user to be set
+    const profile = await fetchProfile()
+    
+    // Redirect based on role
+    const dashboardRoute = getDashboardRoute(profile?.role)
+    await navigateTo(dashboardRoute, { replace: true })
   } catch (err: any) {
     errorMessage.value = err?.data?.message || err?.message || 'Login failed. Please check your credentials.'
   }
@@ -68,6 +91,14 @@ async function doGoogleLogin() {
   
   try {
     await loginWithProvider('google')
+    
+    // Fetch profile to get user role after OAuth login
+    await nextTick() // Wait for user to be set
+    const profile = await fetchProfile()
+    
+    // Redirect based on role
+    const dashboardRoute = getDashboardRoute(profile?.role)
+    await navigateTo(dashboardRoute, { replace: true })
   } catch (err: any) {
     errorMessage.value = err?.data?.message || err?.message || 'Google login failed. Please try again.'
   }

@@ -66,6 +66,7 @@ export function useSubscriptions() {
           fields: [
             'id',
             'student',
+            'teacher',
             'teacher.display_name',
             'course.id',
             'course.label',
@@ -111,7 +112,9 @@ export function useSubscriptions() {
           fields: [
             'id',
             'student',
-            'teacher.display_name',
+            'teacher', // This should return the teacher ID (string)
+            'teacher.id', // Explicitly request ID in case relation is expanded
+            'teacher.display_name', // For display purposes
             'course.id',
             'course.label',
             'package.id',
@@ -165,6 +168,40 @@ export function useSubscriptions() {
       return null
     } catch (err: any) {
       error.value = err?.data?.errors?.[0]?.message || err?.message || 'Failed to create subscription'
+      return null
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
+   * Update subscription (generic update function)
+   */
+  async function updateSubscription(id: string, updates: Partial<Subscription>): Promise<Subscription | null> {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const data = await updateItem<Subscription>({
+        collection: 'subscriptions',
+        id,
+        item: updates
+      })
+
+      if (data) {
+        // Update current subscription if it matches
+        if (currentSubscription.value?.id === id) {
+          currentSubscription.value = data
+        }
+        // Update in subscriptions list
+        const index = subscriptions.value.findIndex(s => s.id === id)
+        if (index !== -1) {
+          subscriptions.value[index] = data
+        }
+      }
+      return data || null
+    } catch (err: any) {
+      error.value = err?.data?.errors?.[0]?.message || err?.message || 'Failed to update subscription'
       return null
     } finally {
       isLoading.value = false
@@ -249,6 +286,7 @@ export function useSubscriptions() {
     fetchMySubscriptions,
     fetchSubscription,
     createSubscription,
+    updateSubscription,
     updateSubscriptionStatus,
     assignTeacher,
     getStatusColor

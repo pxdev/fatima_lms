@@ -3,8 +3,6 @@
  * Marks session as completed and decrements subscription counters
  */
 
-import { createDirectus, rest, authentication, readItem, updateItem } from '@directus/sdk'
-
 interface Session {
   id: string
   subscription: string
@@ -28,11 +26,6 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Initialize Directus client with admin token
-  const directus = createDirectus(config.public.directus.url)
-    .with(authentication())
-    .with(rest())
-
   if (!config.directusAdminToken) {
     throw createError({
       statusCode: 500,
@@ -40,13 +33,25 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  await directus.setToken(config.directusAdminToken)
+  if (!config.public.directus.url) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Server configuration error: Directus URL missing'
+    })
+  }
+
+  const directusUrl = config.public.directus.url
+  const adminToken = config.directusAdminToken
 
   try {
     // Fetch the session
-    const session = await directus.request(
-      readItem('sessions', sessionId)
-    ) as Session
+    const sessionResponse = await $fetch<{ data: Session }>(`${directusUrl}/items/sessions/${sessionId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      }
+    })
+    const session = sessionResponse.data
 
     if (!session) {
       throw createError({
@@ -70,9 +75,13 @@ export default defineEventHandler(async (event) => {
     }
 
     // Fetch the subscription
-    const subscription = await directus.request(
-      readItem('subscriptions', session.subscription)
-    ) as Subscription
+    const subResponse = await $fetch<{ data: Subscription }>(`${directusUrl}/items/subscriptions/${session.subscription}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      }
+    })
+    const subscription = subResponse.data
 
     if (!subscription) {
       throw createError({
@@ -82,12 +91,16 @@ export default defineEventHandler(async (event) => {
     }
 
     // Update session status
-    await directus.request(
-      updateItem('sessions', sessionId, {
+    await $fetch(`${directusUrl}/items/sessions/${sessionId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: {
         status: 'completed',
         completed_at: new Date().toISOString()
-      })
-    )
+      }
+    })
 
     // Decrement sessions_remaining
     const newSessionsRemaining = Math.max(0, subscription.sessions_remaining - 1)
@@ -98,12 +111,16 @@ export default defineEventHandler(async (event) => {
       newSubscriptionStatus = 'completed'
     }
 
-    await directus.request(
-      updateItem('subscriptions', session.subscription, {
+    await $fetch(`${directusUrl}/items/subscriptions/${session.subscription}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: {
         sessions_remaining: newSessionsRemaining,
         ...(newSubscriptionStatus !== subscription.status && { status: newSubscriptionStatus })
-      })
-    )
+      }
+    })
 
     return {
       success: true,

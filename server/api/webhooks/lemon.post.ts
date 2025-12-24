@@ -4,7 +4,6 @@
  */
 
 import crypto from 'crypto'
-import { createDirectus, rest, authentication, updateItem } from '@directus/sdk'
 
 interface LemonSqueezyWebhookPayload {
   meta: {
@@ -71,11 +70,6 @@ export default defineEventHandler(async (event) => {
     return { received: true, processed: false, reason: 'Missing subscription_id' }
   }
 
-  // Initialize Directus client with admin token
-  const directus = createDirectus(config.public.directus.url)
-    .with(authentication())
-    .with(rest())
-
   if (!config.directusAdminToken) {
     console.error('[Lemon Webhook] DIRECTUS_ADMIN_TOKEN not configured')
     throw createError({
@@ -84,16 +78,28 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  await directus.setToken(config.directusAdminToken)
+  if (!config.public.directus.url) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Server configuration error: Directus URL missing'
+    })
+  }
+
+  const directusUrl = config.public.directus.url
+  const adminToken = config.directusAdminToken
 
   try {
     // Update subscription status to payment_received
-    await directus.request(
-      updateItem('subscriptions', subscriptionId, {
+    await $fetch(`${directusUrl}/items/subscriptions/${subscriptionId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: {
         status: 'payment_received',
         lemon_subscription_id: lemonSubscriptionId
-      })
-    )
+      }
+    })
 
     console.log(`[Lemon Webhook] Successfully updated subscription ${subscriptionId} to payment_received`)
 

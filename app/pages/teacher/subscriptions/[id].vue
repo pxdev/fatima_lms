@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { format, parseISO } from 'date-fns'
+import { onUnmounted } from 'vue'
 
 definePageMeta({
   middleware: 'auth',
@@ -64,9 +65,14 @@ const { execute: throttledApprove, isLoading: isApproving } = useThrottledAction
   { throttleMs: 1000 }
 )
 
-// Computed: Find the first pending week (submitted or draft)
+// Computed: Find all pending weeks (submitted or draft) - can approve any of them
+const pendingWeeks = computed(() => {
+  return weeks.value.filter(w => w.status === 'submitted' || w.status === 'draft')
+})
+
+// Computed: Find the first pending week (for auto-scroll)
 const firstPendingWeek = computed(() => {
-  return weeks.value.find(w => w.status === 'submitted' || w.status === 'draft')
+  return pendingWeeks.value[0]
 })
 
 // Computed: Get week status for stepper
@@ -104,7 +110,7 @@ watch(weeks, (newWeeks) => {
       }
     }
   }
-}, { immediate: true })
+}, { immediate: true, deep: true })
 
 onMounted(async () => {
   await fetchProfile()
@@ -115,6 +121,18 @@ onMounted(async () => {
   }
 
   await loadData()
+  
+  // Set up periodic refresh to check for new submissions (every 30 seconds)
+  const refreshInterval = setInterval(async () => {
+    if (document.visibilityState === 'visible') {
+      await loadData()
+    }
+  }, 30000)
+  
+  // Clean up interval on unmount
+  onUnmounted(() => {
+    clearInterval(refreshInterval)
+  })
 })
 
 async function loadData() {
@@ -136,13 +154,14 @@ async function loadData() {
 
     subscription.value = subData || null
 
-    // Fetch weeks
+    // Fetch weeks with all necessary fields including status
     const weeksData = await getItems<WeekDetail>({
       collection: 'subscription_weeks',
       params: {
         filter: {
           subscription: { _eq: subscriptionId.value }
         },
+        fields: ['id', 'week_index', 'status', 'submitted_at', 'reviewed_at'],
         sort: ['week_index']
       }
     })
@@ -160,6 +179,13 @@ async function loadData() {
     }
 
     weeks.value = weeksData || []
+    
+    // Debug: Log week statuses to help identify why approve button might not show
+    console.log('[Teacher Subscriptions] Loaded weeks:', weeks.value.map(w => ({
+      week_index: w.week_index,
+      status: w.status,
+      id: w.id
+    })))
   } catch (err: any) {
     error.value = err?.message || 'Failed to load data'
   } finally {
@@ -328,7 +354,28 @@ function getWeekStatusIcon(status: string): string {
 
         <!-- Weeks Stepper -->
         <div v-if="weeks.length > 0" class="mb-8">
-          <h2 class="mb-6 text-lg font-semibold text-slate-900">Weekly Schedules</h2>
+          <div class="mb-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <h2 class="text-lg font-semibold text-slate-900">Weekly Schedules</h2>
+              <UButton
+                icon="i-heroicons-arrow-path"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                :loading="isLoading"
+                @click="loadData"
+                title="Refresh data"
+              />
+            </div>
+            <UBadge
+              v-if="pendingWeeks.length > 0"
+              color="warning"
+              variant="soft"
+              size="sm"
+            >
+              {{ pendingWeeks.length }} week{{ pendingWeeks.length !== 1 ? 's' : '' }} pending approval
+            </UBadge>
+          </div>
           
           <!-- Stepper Navigation -->
           <div class="mb-6 overflow-x-auto pb-4">
@@ -428,11 +475,11 @@ function getWeekStatusIcon(status: string): string {
             }"
           >
             <template #header>
-              <button
-                class="flex w-full items-center justify-between transition-all hover:opacity-80"
-                @click="toggleWeek(week.id)"
-              >
-                <div class="flex items-center gap-3">
+              <div class="flex w-full items-center justify-between">
+                <button
+                  class="flex flex-1 items-center gap-3 transition-all hover:opacity-80"
+                  @click="toggleWeek(week.id)"
+                >
                   <div
                     class="flex h-8 w-8 items-center justify-center rounded-full transition-all"
                     :class="{
@@ -457,26 +504,36 @@ function getWeekStatusIcon(status: string): string {
                   >
                     {{ week.status }}
                   </UBadge>
-                </div>
-                <div class="flex items-center gap-2">
+                </button>
+                <div class="flex items-center gap-2 ml-4">
+                  <!-- Approve button - can approve ANY submitted week, not just the last one -->
                   <UButton
                     v-if="week.status === 'submitted'"
                     color="success"
                     size="sm"
                     :loading="isApproving && approvingWeekId === week.id"
-                    :disabled="isApproving"
+                    :disabled="isApproving && approvingWeekId !== week.id"
                     @click.stop="approveWeek(week.id)"
                   >
                     <UIcon name="i-heroicons-check" class="h-4 w-4 mr-1" />
-                    Approve
+                    Approve Week {{ week.week_index }}
                   </UButton>
+                  <!-- Show info if week is not submitted (for debugging) -->
+                  <span
+                    v-else-if="week.status !== 'approved'"
+                    class="text-xs text-slate-400 italic"
+                    :title="`Week status: ${week.status}. Only weeks with 'submitted' status can be approved.`"
+                  >
+                    {{ week.status === 'draft' ? 'Draft - needs submission' : week.status }}
+                  </span>
                   <UIcon
                     name="i-heroicons-chevron-down"
-                    class="h-5 w-5 text-slate-400 transition-transform duration-300"
+                    class="h-5 w-5 text-slate-400 transition-transform duration-300 cursor-pointer"
                     :class="{ 'rotate-180': expandedWeekId === week.id }"
+                    @click="toggleWeek(week.id)"
                   />
                 </div>
-              </button>
+              </div>
             </template>
 
             <!-- Expanded Content -->

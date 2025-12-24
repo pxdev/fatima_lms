@@ -3,19 +3,29 @@ const {getItems} = useDirectusItems();
 
 const {data: plans} = await useAsyncData("plans", () => getItems({
   collection: 'plans',
+}).catch(err => {
+  console.warn('Failed to load plans:', err)
+  return []
 }))
 
 const {data: certificates} = await useAsyncData("portfolio", () => getItems({
   collection: 'portfolio',
+}).catch(err => {
+  console.warn('Failed to load portfolio:', err)
+  return []
 }))
 
 const {data: courses} = await useAsyncData("courses", () => getItems({
   collection: 'courses',
-}))
-
-
-const {data: subscription_sessions} = await useAsyncData("subscription_sessions", () => getItems({
-  collection: 'subscription_sessions',
+  params: {
+    filter: {
+      is_active: { _eq: true }
+    },
+    sort: ['sort']
+  }
+}).catch(err => {
+  console.warn('Failed to load courses:', err)
+  return []
 }))
 
 

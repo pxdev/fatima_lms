@@ -3,7 +3,6 @@
  * Creates sessions with Zoom meetings when teacher approves a week
  */
 
-import { createDirectus, rest, authentication, readItems, readItem, updateItem, createItem } from '@directus/sdk'
 import { createZoomMeeting } from '~~/server/utils/zoom'
 
 interface WeekSlot {
@@ -54,11 +53,6 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // Initialize Directus client with admin token
-  const directus = createDirectus(config.public.directus.url)
-    .with(authentication())
-    .with(rest())
-
   if (!config.directusAdminToken) {
     throw createError({
       statusCode: 500,
@@ -66,15 +60,28 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  await directus.setToken(config.directusAdminToken)
+  if (!config.public.directus.url) {
+    throw createError({
+      statusCode: 500,
+      statusMessage: 'Server configuration error: Directus URL missing'
+    })
+  }
+
+  const directusUrl = config.public.directus.url
+  const adminToken = config.directusAdminToken
 
   try {
     // Fetch the subscription with related data
-    const subscription = await directus.request(
-      readItem('subscriptions', subscriptionId, {
+    const subResponse = await $fetch<{ data: Subscription }>(`${directusUrl}/items/subscriptions/${subscriptionId}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      params: {
         fields: ['id', 'student', 'teacher', 'course.id', 'course.label', 'package.id', 'package.session_duration_min']
-      })
-    ) as Subscription
+      }
+    })
+    const subscription = subResponse.data
 
     if (!subscription) {
       throw createError({
@@ -84,9 +91,13 @@ export default defineEventHandler(async (event) => {
     }
 
     // Fetch the week
-    const week = await directus.request(
-      readItem('subscription_weeks', body.week_id)
-    ) as SubscriptionWeek
+    const weekResponse = await $fetch<{ data: SubscriptionWeek }>(`${directusUrl}/items/subscription_weeks/${body.week_id}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      }
+    })
+    const week = weekResponse.data
 
     if (!week || week.subscription !== subscriptionId) {
       throw createError({
@@ -103,12 +114,20 @@ export default defineEventHandler(async (event) => {
     }
 
     // Fetch slots for the week
-    const slots = await directus.request(
-      readItems('week_slots', {
-        filter: { week: { _eq: body.week_id } },
+    // Directus API requires filter to be JSON stringified in query params
+    const filter = JSON.stringify({ week: { _eq: body.week_id } })
+    
+    const slotsResponse = await $fetch<{ data: WeekSlot[] }>(`${directusUrl}/items/week_slots`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      params: {
+        filter,
         sort: ['start_at']
-      })
-    ) as WeekSlot[]
+      }
+    })
+    const slots = slotsResponse.data || []
 
     if (slots.length === 0) {
       throw createError({
@@ -144,8 +163,12 @@ export default defineEventHandler(async (event) => {
       }
 
       // Create session record
-      const session = await directus.request(
-        createItem('sessions', {
+      const sessionResponse = await $fetch<{ data: any }>(`${directusUrl}/items/sessions`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: {
           subscription: subscriptionId,
           start_at: slot.start_at,
           end_at: slot.end_at,
@@ -153,26 +176,34 @@ export default defineEventHandler(async (event) => {
           zoom_meeting_id: zoomMeetingId,
           zoom_join_url: zoomJoinUrl,
           zoom_start_url: zoomStartUrl
-        })
-      )
-
+        }
+      })
+      const session = sessionResponse.data
       sessionsCreated.push(session)
     }
 
     // Update week status to approved
-    await directus.request(
-      updateItem('subscription_weeks', body.week_id, {
+    await $fetch(`${directusUrl}/items/subscription_weeks/${body.week_id}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: {
         status: 'approved',
         reviewed_at: new Date().toISOString()
-      })
-    )
+      }
+    })
 
     // Update subscription status to active (if not already)
-    await directus.request(
-      updateItem('subscriptions', subscriptionId, {
+    await $fetch(`${directusUrl}/items/subscriptions/${subscriptionId}`, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: {
         status: 'active'
-      })
-    )
+      }
+    })
 
     return {
       success: true,

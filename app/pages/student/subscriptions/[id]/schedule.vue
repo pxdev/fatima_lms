@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { toRaw } from 'vue'
 import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateValue } from '@internationalized/date'
 import { format, isBefore, isSameDay, startOfDay, parseISO, getHours, getMinutes, getDay } from 'date-fns'
@@ -48,10 +49,27 @@ const isDeleting = ref(false)
 
 // Computed
 const minDate = computed(() => today(getLocalTimeZone()))
-const selectedPackage = computed(() => 
-  currentSubscription.value ? getPackageById(currentSubscription.value.package) : null
-)
-const requiredSlots = computed(() => selectedPackage.value?.sessions_per_week || 2)
+const selectedPackage = computed(() => {
+  if (!currentSubscription.value) return null
+  const packageId = typeof currentSubscription.value.package === 'string' 
+    ? currentSubscription.value.package 
+    : currentSubscription.value.package?.id
+  return packageId ? getPackageById(packageId) : null
+})
+// Calculate required slots per week from subscription data
+// Use sessions_total / weeks_total to get the actual sessions per week
+// This ensures the requirement matches what's actually in the subscription
+// Fallback to package sessions_per_week if subscription data is not available
+const requiredSlots = computed(() => {
+  if (currentSubscription.value?.sessions_total && currentSubscription.value?.weeks_total && currentSubscription.value.weeks_total > 0) {
+    // Calculate from subscription: total sessions divided by total weeks
+    // Use Math.round to get the closest whole number (e.g., 12/4 = 3, 13/4 = 3.25 -> 3)
+    const calculated = Math.round(currentSubscription.value.sessions_total / currentSubscription.value.weeks_total)
+    return calculated > 0 ? calculated : (selectedPackage.value?.sessions_per_week || 2)
+  }
+  // Fallback to package value if subscription data not available
+  return selectedPackage.value?.sessions_per_week || 2
+})
 const canSubmit = computed(() => 
   currentWeek.value?.status === 'draft' && slots.value.length >= requiredSlots.value
 )
@@ -485,14 +503,26 @@ async function doSubmitWeek() {
   toggleError(false)
 
   try {
-    await submitWeek(currentWeek.value.id)
-    showSuccess('Week submitted for approval!')
+    // Verify we have the required number of slots
+    if (slots.value.length < requiredSlots.value) {
+      showError(`Please schedule all ${requiredSlots.value} required sessions before submitting`)
+      return
+    }
+
+    const result = await submitWeek(currentWeek.value.id)
     
-    useTimeoutFn(() => {
-      navigateTo(`/student/subscriptions/${subscriptionId.value}`)
-    }, 2000)
+    if (result && result.status === 'submitted') {
+      showSuccess('Week submitted for approval! Your teacher will review it shortly.')
+      
+      useTimeoutFn(() => {
+        navigateTo(`/student/subscriptions/${subscriptionId.value}`)
+      }, 2000)
+    } else {
+      showError('Week submission may have failed. Please check the week status.')
+    }
   } catch (err: any) {
-    showError(err?.message || 'Failed to submit week')
+    console.error('[Schedule] Submit week error:', err)
+    showError(err?.data?.errors?.[0]?.message || err?.message || 'Failed to submit week. Please try again.')
   }
 }
 
@@ -511,8 +541,41 @@ onMounted(async () => {
       fetchPackages()
     ])
 
+    // Note: Removed auto-fix logic to prevent overriding admin manual changes
+    // If sessions_total needs to be corrected, it should be done manually in Directus admin panel
+    // or through a proper admin interface, not automatically on page load
+
+    // Fetch teacher availability
+    // Handle Directus relation: teacher can be ID string or expanded object
     if (currentSubscription.value?.teacher) {
-      await fetchTeacherAvailability(currentSubscription.value.teacher)
+      let teacherId: string | null = null
+      const teacherValue = toRaw(currentSubscription.value.teacher)
+      
+      // Convert to plain object for inspection
+      const teacherPlain = JSON.parse(JSON.stringify(teacherValue))
+      
+      if (typeof teacherValue === 'string') {
+        // Teacher is ID string (ideal case)
+        teacherId = teacherValue
+      } else if (teacherValue && typeof teacherValue === 'object') {
+        // Teacher is expanded relation object
+        // Try to get ID from the object
+        if (teacherPlain?.id && typeof teacherPlain.id === 'string') {
+          teacherId = teacherPlain.id
+        } else {
+          // If no ID in object, log for debugging
+          console.warn('[Schedule] Teacher object without ID:', teacherPlain)
+        }
+      }
+      
+      if (teacherId) {
+        await fetchTeacherAvailability(teacherId)
+      } else {
+        console.error('[Schedule] Could not extract teacher ID from:', teacherPlain)
+        console.error('[Schedule] Full subscription:', JSON.parse(JSON.stringify(toRaw(currentSubscription.value))))
+      }
+    } else {
+      console.warn('[Schedule] No teacher assigned to subscription yet')
     }
 
     await fetchWeeks(subscriptionId.value)
@@ -524,8 +587,8 @@ onMounted(async () => {
 })
 </script>
 
-<template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30 py-8">
+  <template>
+    <div class="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30 py-8">
     <div class="mx-auto max-w-6xl px-4">
       <!-- Breadcrumbs -->
       <UBreadcrumb 

@@ -1,4 +1,3 @@
-import { createDirectus, rest, createItem, readItems, updateUser } from '@directus/sdk'
 import { ErrorCode } from '~~/server/utils/errors'
 
 /**
@@ -75,31 +74,34 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const directus = createDirectus(directusUrl)
-    .with(rest({
-      onRequest: (options) => {
-        // Add admin token to all requests
-        options.headers = {
-          ...options.headers,
-          Authorization: `Bearer ${adminToken}`
-        }
-        return options
-      }
-    }))
+  if (!directusUrl) {
+    throw createError({
+      statusCode: ErrorCode.INTERNAL_SERVER_ERROR,
+      statusMessage: 'Server configuration error: Directus URL missing'
+    })
+  }
 
   try {
     // ─────────────────────────────────────────────────────────
     // Check if profile already exists for this user
     // ─────────────────────────────────────────────────────────
-    const existingProfiles = await directus.request(
-      readItems('profiles', {
-        filter: {
-          user: { _eq: body.directus_user_id }
-        },
+    // Directus API requires filter to be JSON stringified in query params
+    const filter = JSON.stringify({
+      user: { _eq: body.directus_user_id }
+    })
+    
+    const profilesResponse = await $fetch<{ data: { id: string }[] }>(`${directusUrl}/items/profiles`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      params: {
+        filter,
         limit: 1,
         fields: ['id']
-      })
-    ) as { id: string }[]
+      }
+    })
+    const existingProfiles = profilesResponse.data || []
 
     if (existingProfiles && existingProfiles.length > 0) {
       // Profile already exists, return existing ID
@@ -114,12 +116,16 @@ export default defineEventHandler(async (event) => {
     const { first_name, last_name } = parseDisplayName(body.display_name)
     
     try {
-      await directus.request(
-        updateUser(body.directus_user_id, {
+      await $fetch(`${directusUrl}/users/${body.directus_user_id}`, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${adminToken}`
+        },
+        body: {
           first_name,
           last_name
-        })
-      )
+        }
+      })
     } catch (updateError) {
       // Log but don't fail - profile creation is more important
       console.warn('Failed to update user names:', updateError)
@@ -128,15 +134,20 @@ export default defineEventHandler(async (event) => {
     // ─────────────────────────────────────────────────────────
     // Create the profile record
     // ─────────────────────────────────────────────────────────
-    const profile = await directus.request(
-      createItem('profiles', {
+    const profileResponse = await $fetch<{ data: { id: string } }>(`${directusUrl}/items/profiles`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${adminToken}`
+      },
+      body: {
         user: body.directus_user_id,
         display_name: body.display_name.trim(),
         timezone: body.timezone || 'Asia/Riyadh',
         role: body.role || 'student',
         is_active: true
-      })
-    ) as { id: string }
+      }
+    })
+    const profile = profileResponse.data
 
     return {
       profile_id: profile.id
