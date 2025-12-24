@@ -82,18 +82,15 @@ function handleSubmit() {
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30 py-12">
     <div class="mx-auto max-w-xl px-4">
-      <!-- Back Link -->
-      <div class="mb-6">
-        <UButton
-          variant="ghost"
-          color="neutral"
-          to="/student/dashboard"
-          size="sm"
-        >
-          <UIcon name="i-heroicons-arrow-left" class="mr-1 h-4 w-4" />
-          Back to Dashboard
-        </UButton>
-      </div>
+      <!-- Breadcrumbs -->
+      <UBreadcrumb 
+        :items="[
+          { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
+          { label: 'My Sessions', to: '/student/sessions' },
+          { label: 'Rate Session' }
+        ]" 
+        class="mb-6"
+      />
 
       <!-- Loading -->
       <UCard v-if="isLoading" class="space-y-4">

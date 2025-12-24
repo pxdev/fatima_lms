@@ -154,6 +154,15 @@ function goToSessions() {
 <template>
   <div class="min-h-screen bg-slate-50 py-8">
     <div class="mx-auto max-w-6xl px-4">
+      <!-- Breadcrumbs -->
+      <UBreadcrumb 
+        :items="[
+          { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
+          { label: 'My Subscriptions', to: '/student/subscriptions' },
+          { label: 'Subscription Details' }
+        ]" 
+        class="mb-6"
+      />
       <!-- Loading State -->
       <div v-if="isLoading && !currentSubscription" class="space-y-6">
         <USkeleton class="h-64 w-full rounded-2xl" />

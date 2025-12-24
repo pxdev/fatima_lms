@@ -196,6 +196,14 @@ function canJoinNow(session: UpcomingSession): boolean {
 
 <template>
   <div>
+    <!-- Breadcrumbs -->
+    <UBreadcrumb 
+      :items="[
+        { label: 'Dashboard', icon: 'i-heroicons-home' }
+      ]" 
+      class="mb-6"
+    />
+
     <!-- Header -->
     <div class="mb-8 flex items-center justify-between">
       <div>

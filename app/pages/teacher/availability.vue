@@ -187,6 +187,15 @@ async function toggleActive(rule: any) {
 
 <template>
   <div>
+    <!-- Breadcrumbs -->
+    <UBreadcrumb 
+      :items="[
+        { label: 'Home', icon: 'i-heroicons-home', to: '/teacher/dashboard' },
+        { label: 'My Availability' }
+      ]" 
+      class="mb-6"
+    />
+
     <!-- Header -->
     <div class="mb-8 flex items-center justify-between">
       <div>

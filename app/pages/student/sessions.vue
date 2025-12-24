@@ -149,6 +149,15 @@ function getSessionIcon(session: SessionWithDetails): string {
 
 <template>
   <div>
+    <!-- Breadcrumbs -->
+    <UBreadcrumb 
+      :items="[
+        { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
+        { label: 'My Sessions' }
+      ]" 
+      class="mb-6"
+    />
+
     <!-- Header -->
     <div class="mb-8">
       <h1 class="text-3xl font-bold text-slate-900">My Sessions</h1>

@@ -123,18 +123,16 @@ function getDisplayStatus(session: any): string {
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30 py-12">
     <div class="mx-auto max-w-4xl px-4">
-      <!-- Back Link -->
-      <div class="mb-6">
-        <UButton
-          variant="ghost"
-          color="neutral"
-          :to="`/student/subscriptions/${subscriptionId}`"
-          size="sm"
-        >
-          <UIcon name="i-heroicons-arrow-left" class="mr-1 h-4 w-4" />
-          Back to Subscription
-        </UButton>
-      </div>
+      <!-- Breadcrumbs -->
+      <UBreadcrumb 
+        :items="[
+          { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
+          { label: 'My Subscriptions', to: '/student/subscriptions' },
+          { label: 'Subscription', to: `/student/subscriptions/${subscriptionId}` },
+          { label: 'Sessions' }
+        ]" 
+        class="mb-6"
+      />
 
       <!-- Header -->
       <div class="mb-8">

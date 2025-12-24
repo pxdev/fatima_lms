@@ -264,18 +264,14 @@ function getWeekStatusIcon(status: string): string {
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
     <div class="mx-auto max-w-4xl px-4 py-8">
-      <!-- Back Link -->
-      <div class="mb-6">
-        <UButton
-          variant="ghost"
-          color="neutral"
-          to="/teacher/dashboard"
-          size="sm"
-        >
-          <UIcon name="i-heroicons-arrow-left" class="mr-1 h-4 w-4" />
-          Back to Dashboard
-        </UButton>
-      </div>
+      <!-- Breadcrumbs -->
+      <UBreadcrumb 
+        :items="[
+          { label: 'Home', icon: 'i-heroicons-home', to: '/teacher/dashboard' },
+          { label: 'Student Details' }
+        ]" 
+        class="mb-6"
+      />
 
       <!-- Loading -->
       <div v-if="isLoading" class="space-y-4">

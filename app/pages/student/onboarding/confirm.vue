@@ -82,6 +82,19 @@ async function confirmSubscription() {
 <template>
   <div class="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30 py-12">
     <div class="mx-auto max-w-2xl px-4">
+      <!-- Breadcrumbs -->
+      <UBreadcrumb 
+        :items="[
+          { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
+          { label: 'Subscriptions', to: '/student/subscriptions' },
+          { label: 'New Subscription', to: '/student/subscribe' },
+          { label: 'Select Course', to: '/student/onboarding/course' },
+          { label: 'Select Package', to: `/student/onboarding/package?course=${courseId}` },
+          { label: 'Confirm' }
+        ]" 
+        class="mb-6"
+      />
+
       <!-- Header -->
       <div class="mb-10 text-center">
         <div class="mb-4 inline-flex items-center gap-2 rounded-full bg-primary-100 px-4 py-1.5 text-sm font-medium text-primary-700">

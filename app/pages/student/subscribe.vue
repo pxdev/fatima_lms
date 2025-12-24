@@ -141,6 +141,16 @@ function getCourseColorClasses(course: any, isSelected: boolean): string {
 <template>
   <div class="min-h-screen">
     <div class="mx-auto max-w-6xl px-4 py-8">
+      <!-- Breadcrumbs -->
+      <UBreadcrumb 
+        :items="[
+          { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
+          { label: 'Subscriptions', to: '/student/subscriptions' },
+          { label: 'New Subscription' }
+        ]" 
+        class="mb-6"
+      />
+
       <!-- Header -->
       <div class="mb-8 text-center">
         <h1 class="text-3xl font-bold text-slate-900">Start Your Learning Journey</h1>

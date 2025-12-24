@@ -28,14 +28,14 @@ const studentItems: NavigationMenuItem[] = [
     to: '/student/dashboard'
   },
   {
+    label: 'My Subscriptions',
+    icon: 'i-heroicons-book-open',
+    to: '/student/subscriptions'
+  },
+  {
     label: 'My Sessions',
     icon: 'i-heroicons-video-camera',
     to: '/student/sessions'
-  },
-  {
-    label: 'New Subscription',
-    icon: 'i-heroicons-plus-circle',
-    to: '/student/subscribe'
   }
 ]
 
@@ -148,14 +148,13 @@ async function handleLogout() {
       </div>
 
       <!-- Main Navigation -->
-      <UNavigationMenu
+      <UNavigationMenu     
         :collapsed="collapsed"
         :items="mainNavItems"
         orientation="vertical"
       />
 
-      <USeparator class="my-4" />
-
+ 
       <!-- Secondary Navigation -->
       <UNavigationMenu
         :collapsed="collapsed"
