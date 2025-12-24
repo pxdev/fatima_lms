@@ -214,58 +214,13 @@ function getPendingSubscriptions() {
             </div>
           </template>
 
-          <!-- Sessions Loading -->
-          <div v-if="sessionsLoading" class="space-y-3">
-            <USkeleton v-for="i in 2" :key="i" class="h-20 w-full" />
-          </div>
-
-          <!-- No Sessions -->
-          <div v-else-if="upcomingSessions.length === 0" class="py-8 text-center">
-            <UIcon name="i-heroicons-calendar" class="mx-auto h-12 w-12 text-slate-300" />
-            <p class="mt-2 text-slate-600">No upcoming sessions scheduled</p>
-            <p class="text-sm text-slate-500">Sessions will appear here once your teacher schedules them</p>
-          </div>
-
-          <!-- Sessions List -->
-          <div v-else class="space-y-3">
-            <div
-              v-for="session in upcomingSessions"
-              :key="session.id"
-              class="flex items-center justify-between rounded-lg bg-slate-50 p-4"
-            >
-              <div class="flex items-center gap-4">
-                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-primary-100">
-                  <UIcon name="i-heroicons-video-camera" class="h-6 w-6 text-primary-600" />
-                </div>
-                <div>
-                  <p class="font-medium text-slate-900">
-                    {{ session.subscription?.course?.label || 'Session' }}
-                  </p>
-                  <p class="text-sm text-slate-600">{{ formatDateTime(session.start_at) }}</p>
-                  <p v-if="session.subscription?.teacher?.display_name" class="text-xs text-slate-500">
-                    with {{ session.subscription.teacher.display_name }}
-                  </p>
-                </div>
-              </div>
-              
-              <div class="flex items-center gap-3">
-                <UBadge :color="canJoinSession(session) ? 'success' : 'info'" variant="soft" size="lg">
-                  {{ canJoinSession(session) ? 'Ready to Join' : 'Scheduled' }}
-                </UBadge>
-                <UButton
-                  v-if="session.zoom_join_url"
-                  :color="canJoinSession(session) ? 'success' : 'neutral'"
-                  :variant="canJoinSession(session) ? 'solid' : 'outline'"
-                  size="xl"
-                  :href="session.zoom_join_url"
-                  target="_blank"
-                >
-                  <UIcon name="i-heroicons-video-camera" class="mr-2 h-5 w-5" />
-                  Join Zoom
-                </UButton>
-              </div>
-            </div>
-          </div>
+          <SessionList
+            :sessions="upcomingSessions"
+            :loading="sessionsLoading"
+            :enable-filters="false"
+            :compact="true"
+            :max-items="5"
+          />
         </UCard>
 
         <!-- Subscriptions Grid -->

@@ -140,7 +140,7 @@ function handleActionClick(e: Event) {
           <span class="font-semibold text-slate-900">{{ subscription.sessions_remaining }}</span>
         </div>
         <div class="flex items-center gap-1.5 min-w-0 flex-1 sm:flex-initial">
-          <UIcon name="hugeicons:arrow-path" class="h-4 w-4 text-amber-600 flex-shrink-0" />
+          <UIcon name="hugeicons:clock-05" class="h-4 w-4 text-amber-600 flex-shrink-0" />
           <span class="text-slate-500 whitespace-nowrap">Postpones:</span>
           <span class="font-semibold text-amber-600">{{ subscription.postpone_remaining }}</span>
         </div>
@@ -554,7 +554,7 @@ function handleActionClick(e: Event) {
         <div class="p-3 sm:p-4 md:p-5">
           <div class="mb-2 sm:mb-3 flex items-center justify-center sm:justify-start">
             <div class="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl bg-amber-100">
-              <UIcon name="hugeicons:arrow-path" class="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
+              <UIcon name="hugeicons:clock-05" class="h-5 w-5 sm:h-6 sm:w-6 text-amber-600" />
             </div>
           </div>
           <p class="text-xl sm:text-2xl font-bold text-amber-600 text-center sm:text-left">
