@@ -4,10 +4,11 @@ import { today, getLocalTimeZone } from '@internationalized/date'
 import type { DateValue } from '@internationalized/date'
 import { format, isBefore, isSameDay, startOfDay, parseISO, getHours, getMinutes, getDay } from 'date-fns'
 import { useTimeoutFn } from '@vueuse/core'
+import PagesHeader from '~/components/app/PagesHeader.vue'
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 const route = useRoute()
@@ -558,26 +559,21 @@ onMounted(async () => {
 </script>
 
   <template>
-    <div class="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30 py-8">
-    <div class="mx-auto max-w-6xl px-4">
-      <!-- Breadcrumbs -->
-      <UBreadcrumb 
-        :items="[
-          { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
+    <div class="min-h-screen">
+      <!-- Header -->
+      <PagesHeader
+        :title="'Schedule Your Sessions'"
+        :description="`Choose ${requiredSlots} time slots for Week ${selectedWeekIndex} from your teacher's available times`"
+        :crumbs="[
+          { label: 'Home', to: '/student/dashboard' },
           { label: 'My Subscriptions', to: '/student/subscriptions' },
           { label: 'Subscription', to: `/student/subscriptions/${subscriptionId}` },
           { label: 'Schedule Sessions' }
-        ]" 
-        class="mb-6"
+        ]"
       />
-
-      <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-slate-900">Schedule Your Sessions</h1>
-        <p class="mt-2 text-slate-600">
-          Choose {{ requiredSlots }} time slots for Week {{ selectedWeekIndex }} from your teacher's available times
-        </p>
-      </div>
+      
+      <div class="py-8">
+        <div class="mx-auto max-w-6xl px-4">
 
 
       <!-- Loading State -->
@@ -1047,8 +1043,9 @@ onMounted(async () => {
           </template>
         </UCard>
       </template>
+        </div>
+      </div>
     </div>
-  </div>
 </template>
 
 <style scoped>

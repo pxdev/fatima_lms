@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import PagesHeader from '~/components/app/PagesHeader.vue'
+
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 const route = useRoute()
@@ -113,17 +115,20 @@ function goToSessions() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 py-8">
-    <div class="mx-auto max-w-6xl px-4">
-      <!-- Breadcrumbs -->
-      <UBreadcrumb 
-        :items="[
-          { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
-          { label: 'My Subscriptions', to: '/student/subscriptions' },
-          { label: 'Subscription Details' }
-        ]" 
-        class="mb-6"
-      />
+  <div class="min-h-screen">
+    <!-- Header -->
+    <PagesHeader
+      :title="'Subscription Details'"
+      :description="currentSubscription ? `${currentSubscription.course?.label || 'Course'} - ${currentSubscription.package?.label || 'Package'}` : ''"
+      :crumbs="[
+        { label: 'Home', to: '/student/dashboard' },
+        { label: 'My Subscriptions', to: '/student/subscriptions' },
+        { label: 'Subscription Details' }
+      ]"
+    />
+    
+    <div class="py-8">
+      <div class="mx-auto max-w-6xl px-4">
       <!-- Loading State -->
       <div v-if="isLoading && !currentSubscription" class="space-y-6">
         <USkeleton class="h-64 w-full rounded-2xl" />
@@ -321,6 +326,7 @@ function goToSessions() {
         description="The subscription you're looking for doesn't exist or you don't have access to it."
         class="mt-6"
       />
+      </div>
     </div>
   </div>
 </template>

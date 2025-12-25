@@ -2,7 +2,7 @@
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 const items = [
   {

@@ -50,7 +50,7 @@ const cleanHtml = (html) => {
   <div class="bg-gray-50 dark:bg-gray-950">
     <pages-header :title="article?.title" :crumbs="crumbs" />
 
-    <u-container class="py-12">
+    <u-container :id="`article-${article?.id}`" class="py-12">
       <div class="grid lg:grid-cols-3 gap-8">
         <!-- Main Content -->
         <div class="lg:col-span-2 space-y-8">

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { parseISO, isAfter, isBefore, differenceInMinutes } from 'date-fns'
+import PagesHeader from '~/components/app/PagesHeader.vue'
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 const route = useRoute()
@@ -121,24 +122,21 @@ function getDisplayStatus(session: any): string {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30 py-12">
-    <div class="mx-auto max-w-4xl px-4">
-      <!-- Breadcrumbs -->
-      <UBreadcrumb 
-        :items="[
-          { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
-          { label: 'My Subscriptions', to: '/student/subscriptions' },
-          { label: 'Subscription', to: `/student/subscriptions/${subscriptionId}` },
-          { label: 'Sessions' }
-        ]" 
-        class="mb-6"
-      />
-
-      <!-- Header -->
-      <div class="mb-8">
-        <h1 class="text-3xl font-bold text-slate-900">My Sessions</h1>
-        <p class="mt-2 text-slate-600">View and manage your scheduled sessions</p>
-      </div>
+  <div class="min-h-screen">
+    <!-- Header -->
+    <PagesHeader
+      :title="'My Sessions'"
+      :description="'View and manage your scheduled sessions'"
+      :crumbs="[
+        { label: 'Home', to: '/student/dashboard' },
+        { label: 'My Subscriptions', to: '/student/subscriptions' },
+        { label: 'Subscription', to: `/student/subscriptions/${subscriptionId}` },
+        { label: 'Sessions' }
+      ]"
+    />
+    
+    <div class="py-12">
+      <div class="mx-auto max-w-4xl px-4">
 
       <!-- Loading -->
       <div v-if="isLoading" class="space-y-4">
@@ -323,6 +321,7 @@ function getDisplayStatus(session: any): string {
           </UCard>
         </template>
       </UModal>
+      </div>
     </div>
   </div>
 </template>

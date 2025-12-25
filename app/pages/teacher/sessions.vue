@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { parseISO, isAfter } from 'date-fns'
+import PagesHeader from '~/components/app/PagesHeader.vue'
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 useSeoMeta({
@@ -213,20 +214,17 @@ function getRecentSessions() {
 
 <template>
   <div>
-    <!-- Breadcrumbs -->
-    <UBreadcrumb 
-      :items="[
-        { label: 'Home', icon: 'i-heroicons-home', to: '/teacher/dashboard' },
-        { label: 'My Sessions' }
-      ]" 
-      class="mb-6"
-    />
-
     <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-slate-900">My Sessions</h1>
-      <p class="mt-1 text-slate-600">Manage your teaching schedule</p>
-    </div>
+    <PagesHeader
+      :title="'My Sessions'"
+      :description="'Manage your teaching schedule'"
+      :crumbs="[
+        { label: 'Home', to: '/teacher/dashboard' },
+        { label: 'My Sessions' }
+      ]"
+    />
+    
+    <u-container>
 
       <!-- Loading -->
       <div v-if="isLoading" class="space-y-4">
@@ -375,6 +373,7 @@ function getRecentSessions() {
           </UTable>
         </UCard>
       </div>
+    </u-container>
   </div>
 </template>
 

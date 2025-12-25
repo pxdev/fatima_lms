@@ -4,7 +4,7 @@ import { format, parseISO, addDays, isAfter } from 'date-fns'
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 useSeoMeta({
@@ -188,15 +188,19 @@ function canJoinNow(session: UpcomingSession): boolean {
 
 <template>
   <div>
-    <!-- Breadcrumbs -->
-    <UBreadcrumb 
-      :items="[
-        { label: 'Dashboard', icon: 'i-heroicons-home' }
-      ]" 
-      class="mb-6"
-    />
+    <u-container>
+      <!-- Dashboard Navigation -->
+      <DashboardNavigation class="mb-12" />
 
-    <!-- Header -->
+      <!-- Breadcrumbs -->
+      <UBreadcrumb 
+        :items="[
+          { label: 'Dashboard', icon: 'i-heroicons-home' }
+        ]" 
+        class="mb-6"
+      />
+
+      <!-- Header -->
     <div class="mb-8 flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-slate-900">
@@ -452,6 +456,7 @@ function canJoinNow(session: UpcomingSession): boolean {
         </UCard>
       </div>
     </div>
+    </u-container>
   </div>
 </template>
 

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { z } from 'zod'
 import TimeDisplay from '~/components/common/TimeDisplay.vue'
+import PagesHeader from '~/components/app/PagesHeader.vue'
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 useSeoMeta({
@@ -212,26 +213,23 @@ async function toggleActive(rule: any) {
 
     <Debug>{{ rules }}</Debug>
 
-    <!-- Breadcrumbs -->
-    <UBreadcrumb 
-      :items="[
-        { label: 'Home', icon: 'i-heroicons-home', to: '/teacher/dashboard' },
-        { label: 'My Availability' }
-      ]" 
-      class="mb-6"
-    />
-
     <!-- Header -->
-    <div class="mb-8 flex items-center justify-between">
-      <div>
-        <h1 class="text-3xl font-bold text-slate-900">My Availability</h1>
-        <p class="mt-1 text-slate-600">Set your weekly available time slots</p>
+    <PagesHeader
+      :title="'My Availability'"
+      :description="'Set your weekly available time slots'"
+      :crumbs="[
+        { label: 'Home', to: '/teacher/dashboard' },
+        { label: 'My Availability' }
+      ]"
+    />
+    
+    <u-container>
+      <div class="mb-6 flex justify-end">
+        <UButton color="primary" @click="openAddModal" class="hidden sm:flex">
+          <UIcon name="i-heroicons-plus" class="mr-2 h-4 w-4" />
+          Add Slot
+        </UButton>
       </div>
-      <UButton color="primary" @click="openAddModal" class="hidden sm:flex">
-        <UIcon name="i-heroicons-plus" class="mr-2 h-4 w-4" />
-        Add Slot
-      </UButton>
-    </div>
 
       <!-- Loading -->
       <div v-if="isLoading" class="space-y-4">
@@ -417,6 +415,7 @@ async function toggleActive(rule: any) {
           </UCard>
         </template>
       </UModal>
+    </u-container>
   </div>
 </template>
 

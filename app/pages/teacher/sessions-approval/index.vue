@@ -1,9 +1,10 @@
 <script setup lang="ts">
 // Removed format and parseISO - using DateTimeDisplay component instead
+import PagesHeader from '~/components/app/PagesHeader.vue'
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 useSeoMeta({
@@ -327,35 +328,30 @@ function toggleRequest(requestId: string) {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30 py-8">
-    <div class="mx-auto max-w-7xl px-4">
-      <!-- Breadcrumbs -->
-      <UBreadcrumb 
-        :items="[
-          { label: 'Home', icon: 'i-heroicons-home', to: '/teacher/dashboard' },
-          { label: 'Sessions Approval' }
-        ]" 
-        class="mb-6"
-      />
-
-      <!-- Header -->
-      <div class="mb-8 flex items-center justify-between">
-        <div>
-          <h1 class="text-3xl font-bold text-slate-900">Sessions Approval</h1>
-          <p class="mt-2 text-slate-600">
-            Review and approve student session requests
-          </p>
+  <div class="min-h-screen">
+    <!-- Header -->
+    <PagesHeader
+      :title="'Sessions Approval'"
+      :description="'Review and approve student session requests'"
+      :crumbs="[
+        { label: 'Home', to: '/teacher/dashboard' },
+        { label: 'Sessions Approval' }
+      ]"
+    />
+    
+    <div class="py-8">
+      <u-container>
+        <div class="mb-6 flex justify-end">
+          <UButton
+            icon="i-heroicons-arrow-path"
+            color="neutral"
+            variant="ghost"
+            size="lg"
+            :loading="isLoading"
+            @click="loadApprovalRequests"
+            title="Refresh"
+          />
         </div>
-        <UButton
-          icon="i-heroicons-arrow-path"
-          color="neutral"
-          variant="ghost"
-          size="lg"
-          :loading="isLoading"
-          @click="loadApprovalRequests"
-          title="Refresh"
-        />
-      </div>
 
       <!-- Error Alert -->
       <UAlert
@@ -528,6 +524,7 @@ function toggleRequest(requestId: string) {
           </div>
         </UCard>
       </div>
+      </u-container>
     </div>
   </div>
 </template>

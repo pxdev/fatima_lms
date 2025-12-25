@@ -1,10 +1,11 @@
 <script setup lang="ts">
 // Removed format and parseISO - using DateTimeDisplay and SlotTimeDisplay components instead
 import { onUnmounted } from 'vue'
+import PagesHeader from '~/components/app/PagesHeader.vue'
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 const route = useRoute()
@@ -284,36 +285,39 @@ function getWeekStatusIcon(status: string): string {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
-    <div class="mx-auto max-w-4xl px-4 py-8">
-      <!-- Breadcrumbs -->
-      <UBreadcrumb 
-        :items="[
-          { label: 'Home', icon: 'i-heroicons-home', to: '/teacher/dashboard' },
-          { label: 'Student Details' }
-        ]" 
-        class="mb-6"
-      />
+  <div class="min-h-screen">
+    <!-- Header -->
+    <PagesHeader
+      v-if="subscription"
+      :title="`${subscription.student?.display_name || 'Student'} Details`"
+      :description="`${subscription.course?.label || ''} • ${subscription.package?.label || ''}`"
+      :crumbs="[
+        { label: 'Home', to: '/teacher/dashboard' },
+        { label: 'Student Details' }
+      ]"
+    />
+    
+    <div class="py-8">
+      <div class="mx-auto max-w-4xl px-4">
+        <!-- Loading -->
+        <div v-if="isLoading" class="space-y-4">
+          <USkeleton class="h-32 w-full" />
+          <USkeleton class="h-64 w-full" />
+        </div>
 
-      <!-- Loading -->
-      <div v-if="isLoading" class="space-y-4">
-        <USkeleton class="h-32 w-full" />
-        <USkeleton class="h-64 w-full" />
-      </div>
+        <!-- Error -->
+        <UAlert
+          v-else-if="error"
+          color="error"
+          variant="soft"
+          icon="i-heroicons-exclamation-triangle"
+          :title="error"
+          class="mb-6"
+          closable
+          @close="error = null"
+        />
 
-      <!-- Error -->
-      <UAlert
-        v-else-if="error"
-        color="error"
-        variant="soft"
-        icon="i-heroicons-exclamation-triangle"
-        :title="error"
-        class="mb-6"
-        closable
-        @close="error = null"
-      />
-
-      <template v-else-if="subscription">
+        <template v-else-if="subscription">
         <!-- Subscription Header -->
         <UCard class="mb-6">
           <div class="flex items-start justify-between">
@@ -576,7 +580,8 @@ function getWeekStatusIcon(status: string): string {
             </div>
           </UCard>
         </div>
-      </template>
+        </template>
+      </div>
     </div>
   </div>
 </template>

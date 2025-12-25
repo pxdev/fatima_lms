@@ -26,7 +26,7 @@ const userRole = computed(() => profile.value?.role || 'student')
 const menuItems = computed(() => {
   const items = []
 
-  // Role-specific dashboard
+  // Role-specific navigation items
   if (userRole.value === 'admin') {
     items.push({
       label: 'Admin Dashboard',
@@ -45,9 +45,19 @@ const menuItems = computed(() => {
       to: '/teacher/dashboard'
     })
     items.push({
+      label: 'Sessions Approval',
+      icon: 'hugeicons:checkmark-circle-02',
+      to: '/teacher/sessions-approval'
+    })
+    items.push({
       label: 'My Sessions',
       icon: 'hugeicons:video-02',
       to: '/teacher/sessions'
+    })
+    items.push({
+      label: 'My Subscriptions',
+      icon: 'hugeicons:book-02',
+      to: '/teacher/subscriptions'
     })
     items.push({
       label: 'Availability',
@@ -60,6 +70,16 @@ const menuItems = computed(() => {
       label: 'My Dashboard',
       icon: 'hugeicons:dashboard-square-02',
       to: '/student/dashboard'
+    })
+    items.push({
+      label: 'My Subscriptions',
+      icon: 'hugeicons:book-02',
+      to: '/student/subscriptions'
+    })
+    items.push({
+      label: 'My Sessions',
+      icon: 'hugeicons:video-02',
+      to: '/student/sessions'
     })
     items.push({
       label: 'New Subscription',
@@ -76,6 +96,13 @@ const menuItems = computed(() => {
     label: 'My Profile',
     icon: 'hugeicons:user-02',
     to: '/account/profile'
+  })
+
+  // Back to Portal
+  items.push({
+    label: 'Back to Portal',
+    icon: 'hugeicons:arrow-left-01',
+    to: '/'
   })
 
   // Logout

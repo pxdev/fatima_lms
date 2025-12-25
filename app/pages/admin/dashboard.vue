@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 useSeoMeta({
@@ -142,11 +142,15 @@ function getStatusColor(status: string): string {
 
 <template>
   <div>
-    <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
-      <p class="mt-1 text-slate-600">Manage subscriptions and assign teachers</p>
-    </div>
+    <u-container>
+      <!-- Dashboard Navigation -->
+      <DashboardNavigation class="mb-12" />
+
+      <!-- Header -->
+      <div class="mb-8">
+        <h1 class="text-3xl font-bold text-slate-900">Admin Dashboard</h1>
+        <p class="mt-1 text-slate-600">Manage subscriptions and assign teachers</p>
+      </div>
 
     <!-- Loading -->
     <div v-if="isLoading" class="space-y-4">
@@ -262,6 +266,7 @@ function getStatusColor(status: string): string {
           </UTable>
         </UCard>
       </div>
+    </u-container>
   </div>
 </template>
 

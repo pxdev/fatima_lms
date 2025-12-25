@@ -424,7 +424,7 @@ function handleActionClick(e: Event) {
   <div v-else-if="variant === 'hero'">
     <!-- Hero Header Card -->
     <UCard class="mb-4 sm:mb-6">
-      <div class="bg-gradient-to-br from-primary-600 to-primary-700 p-4 sm:p-6 md:p-8 text-white">
+      <div class="bg-gradient-to-r from-primary/20 to-secondary/20 p-4 sm:p-6 md:p-8">
         <div class="flex flex-col gap-4 sm:gap-6 md:flex-row md:items-center md:justify-between">
           <div class="flex-1 min-w-0">
             <div class="mb-2 sm:mb-3">
@@ -440,20 +440,20 @@ function handleActionClick(e: Event) {
             <h1 class="mb-2 text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold break-words">
               {{ course?.label || 'Course' }}
             </h1>
-            <p class="text-sm sm:text-base md:text-lg text-primary-200 break-words">
+            <p class="text-sm sm:text-base md:text-lg break-words">
               {{ package_?.label || 'Package' }}
             </p>
             <!-- Teacher and Subscription ID -->
             <div class="mt-3 space-y-2">
-              <div v-if="teacherDisplayName" class="flex items-center gap-1.5 text-xs sm:text-sm text-primary-200">
+              <div v-if="teacherDisplayName" class="flex items-center gap-1.5 text-xs sm:text-sm">
                 <UIcon name="hugeicons:user-02" class="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" />
                 <span class="truncate">{{ teacherDisplayName }}</span>
               </div>
               <div class="flex items-start gap-1.5 text-xs sm:text-sm">
-                <UIcon name="hugeicons:tag-01" class="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary-200 flex-shrink-0 mt-0.5" />
+                <UIcon name="hugeicons:tag-01" class="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 mt-0.5" />
                 <div class="flex-1 min-w-0">
-                  <span class="text-primary-200 font-medium">ID: </span>
-                  <span class="font-mono text-[10px] sm:text-xs text-white break-all">{{ subscription.id }}</span>
+                  <span class=" font-medium">ID: </span>
+                  <span class="font-mono text-[10px] sm:text-xs  break-all">{{ subscription.id }}</span>
                 </div>
               </div>
             </div>
@@ -467,7 +467,7 @@ function handleActionClick(e: Event) {
                   cx="50"
                   cy="50"
                   r="40"
-                  stroke="rgba(255,255,255,0.2)"
+                  stroke="rgba(255,255,255,0.8)"
                   stroke-width="8"
                   fill="none"
                 />
@@ -484,8 +484,8 @@ function handleActionClick(e: Event) {
                 />
               </svg>
               <div class="absolute inset-0 flex flex-col items-center justify-center">
-                <span class="text-xl sm:text-2xl font-bold">{{ progress.percentage }}%</span>
-                <span class="text-xs text-primary-200">Complete</span>
+                <span class="text-xl sm:text-xl font-bold">{{ progress.percentage }}%</span>
+                <span class="text-[10px]">Complete</span>
               </div>
             </div>
           </div>

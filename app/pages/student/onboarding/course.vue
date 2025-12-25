@@ -1,7 +1,7 @@
 <script setup lang="ts">
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 useSeoMeta({
@@ -28,7 +28,7 @@ function continueToPackage() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-br from-slate-50 to-primary-50/30 py-12">
+  <div class="min-h-screen py-12">
     <div class="mx-auto max-w-4xl px-4">
       <!-- Breadcrumbs -->
       <UBreadcrumb 

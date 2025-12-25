@@ -3,7 +3,7 @@ import { parseISO, differenceInMinutes } from 'date-fns'
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 useSeoMeta({
@@ -146,16 +146,20 @@ function getPendingSubscriptions() {
 
 <template>
   <div>
-    <!-- Breadcrumbs -->
-    <UBreadcrumb 
-      :items="[
-        { label: 'Dashboard', icon: 'i-heroicons-home' }
-      ]" 
-      class="mb-6"
-    />
+    <u-container>
+      <!-- Dashboard Navigation -->
+      <DashboardNavigation class="mb-12" />
 
-    <!-- Header -->
-    <div class="mb-8 flex items-center justify-between">
+      <!-- Breadcrumbs -->
+      <UBreadcrumb 
+        :items="[
+          { label: 'Dashboard', icon: 'i-heroicons-home' }
+        ]" 
+        class="mb-6"
+      />
+
+      <!-- Header -->
+      <div class="mb-8 flex items-center justify-between">
       <div>
         <h1 class="text-3xl font-bold text-slate-900">
           Welcome back{{ profile?.display_name ? `, ${profile.display_name}` : '' }}!
@@ -231,6 +235,7 @@ function getPendingSubscriptions() {
         </div>
       </template>
     </div>
+    </u-container>
   </div>
 </template>
 

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { parseISO, differenceInMinutes, isAfter, isBefore } from 'date-fns'
+import PagesHeader from '~/components/app/PagesHeader.vue'
 
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 useSeoMeta({
@@ -97,20 +98,17 @@ async function loadSessions() {
 
 <template>
   <div>
-    <!-- Breadcrumbs -->
-    <UBreadcrumb 
-      :items="[
-        { label: 'Home', icon: 'i-heroicons-home', to: '/student/dashboard' },
-        { label: 'My Sessions' }
-      ]" 
-      class="mb-6"
-    />
-
     <!-- Header -->
-    <div class="mb-8">
-      <h1 class="text-3xl font-bold text-slate-900">My Sessions</h1>
-      <p class="mt-1 text-slate-600">View and manage all your learning sessions</p>
-    </div>
+    <PagesHeader
+      :title="'My Sessions'"
+      :description="'View and manage all your learning sessions'"
+      :crumbs="[
+        { label: 'Home', to: '/student/dashboard' },
+        { label: 'My Sessions' }
+      ]"
+    />
+    
+    <u-container>
 
     <!-- Loading -->
     <div v-if="isLoading" class="space-y-4">
@@ -145,6 +143,7 @@ async function loadSessions() {
     <div v-else>
       <SessionList :sessions="sessions" />
     </div>
+    </u-container>
   </div>
 </template>
 

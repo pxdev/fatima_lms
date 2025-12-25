@@ -1,7 +1,9 @@
 <script setup lang="ts">
+import PagesHeader from '~/components/app/PagesHeader.vue'
+
 definePageMeta({
   middleware: 'auth',
-  layout: 'dashboard'
+  layout: 'default'
 })
 
 useSeoMeta({
@@ -109,31 +111,28 @@ function isExpanded(subscriptionId: string) {
 
 <template>
   <div>
-    <!-- Breadcrumbs -->
-    <UBreadcrumb 
-      :items="[
-        { label: 'Home', icon: 'hugeicons:dashboard-square-02', to: '/student/dashboard' },
-        { label: 'My Subscriptions' }
-      ]" 
-      class="mb-6"
-    />
-
     <!-- Header -->
-    <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 class="text-3xl font-bold text-slate-900">My Subscriptions</h1>
-        <p class="mt-1 text-slate-600">View and manage all your learning subscriptions</p>
+    <PagesHeader
+      :title="'My Subscriptions'"
+      :description="'View and manage all your learning subscriptions'"
+      :crumbs="[
+        { label: 'Home', to: '/student/dashboard' },
+        { label: 'My Subscriptions' }
+      ]"
+    />
+    
+    <u-container>
+      <div class="mb-6 flex justify-end">
+        <UButton
+          color="primary"
+          size="lg"
+          class="rounded-full"
+          to="/student/subscribe"
+        >
+          <UIcon name="hugeicons:add-circle" class="mr-2 h-5 w-5" />
+          Add New Subscription
+        </UButton>
       </div>
-      <UButton
-        color="primary"
-        size="lg"
-        class="rounded-full"
-        to="/student/subscribe"
-      >
-        <UIcon name="hugeicons:add-circle" class="mr-2 h-5 w-5" />
-        Add New Subscription
-      </UButton>
-    </div>
 
     <!-- Loading -->
     <div v-if="isLoading" class="space-y-4">
@@ -262,6 +261,7 @@ function isExpanded(subscriptionId: string) {
         />
       </div>
     </div>
+    </u-container>
   </div>
 </template>
 
