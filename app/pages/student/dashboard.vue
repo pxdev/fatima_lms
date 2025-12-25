@@ -112,11 +112,7 @@ async function loadUpcomingSessions() {
   }
 }
 
-const { formatDateTime: formatDateTimeTz } = useTimezone()
-
-function formatDateTime(dateStr: string): string {
-  return formatDateTimeTz(dateStr)
-}
+// Removed formatDateTime - using DateTimeDisplay component instead
 
 function canJoinSession(session: UpcomingSession): boolean {
   if (!session.zoom_join_url) return false

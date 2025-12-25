@@ -32,16 +32,7 @@ const crumbs = computed(() => [
   { label: article.value?.title ?? 'Loading...' }
 ])
 
-const { formatDateOnly } = useTimezone()
-
-const formattedDate = computed(() => {
-  if (!article.value?.date_created) return ''
-  return formatDateOnly(article.value.date_created, {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-})
+// Date formatting now handled by DateTimeDisplay component
 
 const authorName = computed(() => {
   const user = article.value?.user_created
@@ -84,7 +75,13 @@ const cleanHtml = (html) => {
 
               <div class="flex items-center gap-2">
                 <u-icon name="i-heroicons-calendar" class="w-5 h-5" />
-                <time>{{ formattedDate }}</time>
+                <time>
+                  <DateTimeDisplay 
+                    :date="article?.date_created" 
+                    type="date" 
+                    :format-options="{ year: 'numeric', month: 'long', day: 'numeric' }" 
+                  />
+                </time>
               </div>
 
               <u-badge v-if="article.category" color="primary" variant="soft">
@@ -165,7 +162,13 @@ const cleanHtml = (html) => {
               <div class="space-y-4">
                 <div class="flex items-center justify-between text-sm">
                   <span class="text-gray-600 dark:text-gray-400">Published</span>
-                  <span class="font-semibold text-gray-900 dark:text-white">{{ formattedDate }}</span>
+                  <span class="font-semibold text-gray-900 dark:text-white">
+                    <DateTimeDisplay 
+                      :date="article?.date_created" 
+                      type="date" 
+                      :format-options="{ year: 'numeric', month: 'long', day: 'numeric' }" 
+                    />
+                  </span>
                 </div>
 
                 <div class="flex items-center justify-between text-sm">

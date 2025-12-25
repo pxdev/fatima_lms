@@ -161,15 +161,7 @@ async function loadData() {
   }
 }
 
-const { formatDateTime: formatDateTimeTz, formatTime: formatTimeTz } = useTimezone()
-
-function formatDateTime(dateStr: string): string {
-  return formatDateTimeTz(dateStr)
-}
-
-function formatTime(dateStr: string): string {
-  return formatTimeTz(dateStr)
-}
+// Removed formatDateTime and formatTime - using DateTimeDisplay component instead
 
 function formatSelectedDate(date: CalendarDate): string {
   const d = new Date(date.year, date.month - 1, date.day)
@@ -316,8 +308,12 @@ function canJoinNow(session: UpcomingSession): boolean {
               <div class="flex items-center gap-4">
                 <!-- Time Badge -->
                 <div class="flex flex-col items-center rounded-lg bg-primary-100 px-3 py-2">
-                  <span class="text-lg font-bold text-primary-700">{{ formatTime(session.start_at) }}</span>
-                  <span class="text-xs text-primary-500">{{ formatTime(session.end_at) }}</span>
+                  <span class="text-lg font-bold text-primary-700">
+                    <DateTimeDisplay :date="session.start_at" type="time" />
+                  </span>
+                  <span class="text-xs text-primary-500">
+                    <DateTimeDisplay :date="session.end_at" type="time" />
+                  </span>
                 </div>
                 
                 <div>
@@ -383,7 +379,7 @@ function canJoinNow(session: UpcomingSession): boolean {
                   {{ session.subscription?.student?.display_name || 'Student' }}
                 </p>
                 <p class="text-sm text-slate-600">
-                  {{ formatDateTime(session.start_at) }}
+                  <DateTimeDisplay :date="session.start_at" type="datetime" />
                 </p>
                 <p class="text-xs text-slate-500">
                   {{ session.subscription?.course?.label || 'Course' }}

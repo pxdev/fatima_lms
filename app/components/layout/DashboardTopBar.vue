@@ -46,6 +46,11 @@ const teacherItems: NavigationMenuItem[] = [
     to: '/teacher/dashboard'
   },
   {
+    label: 'Sessions Approval',
+    icon: 'hugeicons:checkmark-circle-02',
+    to: '/teacher/sessions-approval'
+  },
+  {
     label: 'My Sessions',
     icon: 'hugeicons:video-02',
     to: '/teacher/sessions'
@@ -116,6 +121,9 @@ const mainNavItems = computed(() => {
 
       <!-- Right Side Actions -->
       <div class="flex items-center gap-4">
+        <!-- Timezone Toggle Button -->
+        <TimezoneToggleButton />
+        
         <!-- Mobile Menu Button -->
         <UDropdownMenu
           :items="[

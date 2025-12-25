@@ -147,12 +147,17 @@ export function useWeekSlots() {
   /**
    * Format slot time for display (no timezone conversion - shows exactly as stored)
    * Parse the ISO string directly to avoid any timezone conversion
+   * Returns an object with date and time for two-line display
    */
-  function formatSlotTime(slot: WeekSlot): string {
+  function formatSlotTime(slot: WeekSlot): { date: string; time: string } {
     // Parse ISO string directly: "2024-12-28T21:00:00Z" or "2024-12-28T21:00:00.000Z"
     // Extract components directly from the string to avoid Date object timezone issues
     const startMatch = slot.start_at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
     const endMatch = slot.end_at.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})/)
+    
+    let dateStr: string
+    let startTime: string
+    let endTime: string
     
     if (!startMatch || !endMatch) {
       // Fallback to Date parsing if format is unexpected
@@ -168,42 +173,43 @@ export function useWeekSlots() {
       const day = startDate.getUTCDate()
       
       const date = new Date(Date.UTC(year, month, day))
-      const dateStr = format(date, 'EEE, MMM d')
+      dateStr = format(date, 'EEE, MMM d')
       
       const startPeriod = startHours >= 12 ? 'PM' : 'AM'
       const startDisplayHours = startHours % 12 || 12
-      const startTime = `${startDisplayHours}:${String(startMinutes).padStart(2, '0')} ${startPeriod}`
+      startTime = `${startDisplayHours}:${String(startMinutes).padStart(2, '0')} ${startPeriod}`
       
       const endPeriod = endHours >= 12 ? 'PM' : 'AM'
       const endDisplayHours = endHours % 12 || 12
-      const endTime = `${endDisplayHours}:${String(endMinutes).padStart(2, '0')} ${endPeriod}`
+      endTime = `${endDisplayHours}:${String(endMinutes).padStart(2, '0')} ${endPeriod}`
+    } else {
+      // Extract components directly from string
+      const [, startYear, startMonth, startDay, startHoursStr, startMinutesStr] = startMatch
+      const [, , , , endHoursStr, endMinutesStr] = endMatch
       
-      return `${dateStr}, ${startTime} - ${endTime}`
+      const startHours = parseInt(startHoursStr, 10)
+      const startMinutes = parseInt(startMinutesStr, 10)
+      const endHours = parseInt(endHoursStr, 10)
+      const endMinutes = parseInt(endMinutesStr, 10)
+      
+      // Format date using the extracted components
+      const date = new Date(parseInt(startYear, 10), parseInt(startMonth, 10) - 1, parseInt(startDay, 10))
+      dateStr = format(date, 'EEE, MMM d')
+      
+      // Format times using the extracted hours/minutes directly
+      const startPeriod = startHours >= 12 ? 'PM' : 'AM'
+      const startDisplayHours = startHours % 12 || 12
+      startTime = `${startDisplayHours}:${String(startMinutes).padStart(2, '0')} ${startPeriod}`
+      
+      const endPeriod = endHours >= 12 ? 'PM' : 'AM'
+      const endDisplayHours = endHours % 12 || 12
+      endTime = `${endDisplayHours}:${String(endMinutes).padStart(2, '0')} ${endPeriod}`
     }
     
-    // Extract components directly from string
-    const [, startYear, startMonth, startDay, startHoursStr, startMinutesStr] = startMatch
-    const [, , , , endHoursStr, endMinutesStr] = endMatch
-    
-    const startHours = parseInt(startHoursStr, 10)
-    const startMinutes = parseInt(startMinutesStr, 10)
-    const endHours = parseInt(endHoursStr, 10)
-    const endMinutes = parseInt(endMinutesStr, 10)
-    
-    // Format date using the extracted components
-    const date = new Date(parseInt(startYear, 10), parseInt(startMonth, 10) - 1, parseInt(startDay, 10))
-    const dateStr = format(date, 'EEE, MMM d')
-    
-    // Format times using the extracted hours/minutes directly
-    const startPeriod = startHours >= 12 ? 'PM' : 'AM'
-    const startDisplayHours = startHours % 12 || 12
-    const startTime = `${startDisplayHours}:${String(startMinutes).padStart(2, '0')} ${startPeriod}`
-    
-    const endPeriod = endHours >= 12 ? 'PM' : 'AM'
-    const endDisplayHours = endHours % 12 || 12
-    const endTime = `${endDisplayHours}:${String(endMinutes).padStart(2, '0')} ${endPeriod}`
-    
-    return `${dateStr}, ${startTime} - ${endTime}`
+    return {
+      date: dateStr,
+      time: `${startTime} - ${endTime}`
+    }
   }
 
   return {

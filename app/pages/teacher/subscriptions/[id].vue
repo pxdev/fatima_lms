@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { format, parseISO } from 'date-fns'
+// Removed format and parseISO - using DateTimeDisplay and SlotTimeDisplay components instead
 import { onUnmounted } from 'vue'
 
 definePageMeta({
@@ -260,11 +260,7 @@ function goToWeek(weekIndex: number) {
   }
 }
 
-const { formatSlotTime } = useTimezone()
-
-function formatSlotTimeDisplay(slot: any): string {
-  return formatSlotTime(slot.start_at, slot.end_at)
-}
+// Removed formatSlotTimeDisplay - using SlotTimeDisplay component instead
 
 function getWeekStatusColor(status: string): string {
   const colors: Record<string, string> = {
@@ -556,7 +552,9 @@ function getWeekStatusIcon(status: string): string {
                     <UIcon name="i-heroicons-clock" class="h-5 w-5" />
                   </div>
                   <div class="flex-1">
-                    <div class="font-medium text-slate-900">{{ formatSlotTimeDisplay(slot) }}</div>
+                    <div class="font-medium text-slate-900">
+                      <SlotTimeDisplay :start-at="slot.start_at" :end-at="slot.end_at" />
+                    </div>
                     <div v-if="slot.note" class="mt-0.5 text-sm text-slate-500">
                       {{ slot.note }}
                     </div>
@@ -572,7 +570,7 @@ function getWeekStatusIcon(status: string): string {
               <div v-if="week.submitted_at" class="mt-4 border-t border-slate-200 pt-3">
                 <div class="flex items-center gap-2 text-xs text-slate-500">
                   <UIcon name="i-heroicons-paper-airplane" class="h-3 w-3" />
-                  Submitted: {{ format(parseISO(week.submitted_at), 'MMM d, yyyy') }}
+                  Submitted: <DateTimeDisplay :date="week.submitted_at" type="date" />
                 </div>
               </div>
             </div>

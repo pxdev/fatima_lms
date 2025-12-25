@@ -13,7 +13,7 @@ useSeoMeta({
 
 const { profile, fetchProfile } = useProfile()
 const { getItems } = useDirectusItems()
-const { formatDateTime } = useTimezone()
+// Removed formatDateTime - using DateTimeDisplay component instead
 
 interface TeacherSession {
   id: string
@@ -265,7 +265,9 @@ function getRecentSessions() {
                 <p class="font-medium text-slate-900">
                   {{ session.subscription?.student?.display_name || 'Student' }}
                 </p>
-                <p class="text-sm text-slate-600">{{ formatDateTime(session.start_at) }}</p>
+                <p class="text-sm text-slate-600">
+                  <DateTimeDisplay :date="session.start_at" type="datetime" />
+                </p>
               </div>
               <UButton
                 color="warning"
@@ -305,7 +307,9 @@ function getRecentSessions() {
                   <p class="font-medium text-slate-900">
                     {{ session.subscription?.student?.display_name || 'Student' }}
                   </p>
-                  <p class="text-sm text-slate-600">{{ formatDateTime(session.start_at) }}</p>
+                  <p class="text-sm text-slate-600">
+                  <DateTimeDisplay :date="session.start_at" type="datetime" />
+                </p>
                   <p class="text-xs text-slate-500">
                     {{ session.subscription?.course?.label || 'Course' }}
                   </p>
@@ -361,7 +365,7 @@ function getRecentSessions() {
               {{ row.original.subscription?.course?.label || '-' }}
             </template>
             <template #start_at-cell="{ row }">
-              {{ formatDateTime(row.original.start_at) }}
+              <DateTimeDisplay :date="row.original.start_at" type="datetime" />
             </template>
             <template #status-cell="{ row }">
               <UBadge :color="getStatusColor(row.original.status) as any" variant="soft" size="sm">

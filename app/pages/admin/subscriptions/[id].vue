@@ -14,7 +14,7 @@ useSeoMeta({
 
 const { profile, fetchProfile } = useProfile()
 const { getItemById, getItems, updateItem } = useDirectusItems()
-const { formatDateOnly } = useTimezone()
+// Removed formatDateOnly - using DateTimeDisplay component instead
 
 interface SubscriptionDetail {
   id: string
@@ -172,15 +172,6 @@ async function updateStatus(newStatus: string) {
   }
 }
 
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '-'
-  return formatDateOnly(dateStr, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  })
-}
-
 function getStatusColor(status: string): 'error' | 'primary' | 'success' | 'info' | 'warning' | 'neutral' {
   const colors: Record<string, 'error' | 'primary' | 'success' | 'info' | 'warning' | 'neutral'> = {
     draft: 'neutral',
@@ -222,7 +213,7 @@ function getStatusColor(status: string): 'error' | 'primary' | 'success' | 'info
         <div>
           <h1 class="text-2xl font-bold text-slate-900">Subscription Details</h1>
           <p class="mt-1 text-slate-600">
-            Created {{ formatDate(subscription.date_created) }}
+            Created <DateTimeDisplay :date="subscription.date_created" type="date" />
           </p>
         </div>
         <UBadge :color="getStatusColor(subscription.status)" variant="soft" size="lg">

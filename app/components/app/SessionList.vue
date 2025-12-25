@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { parseISO, format } from 'date-fns'
+import { parseISO } from 'date-fns'
 
 interface SessionWithDetails {
   id: string
@@ -135,10 +135,7 @@ function canJoinSession(session: SessionWithDetails): boolean {
   return diffMinutes <= 15
 }
 
-function formatDateTime(dateStr: string): string {
-  const d = parseISO(dateStr)
-  return format(d, 'EEE, MMM d • h:mm a')
-}
+// Removed formatDateTime - using DateTimeDisplay component instead
 </script>
 
 <template>
@@ -269,7 +266,7 @@ function formatDateTime(dateStr: string): string {
                 {{ session.subscription?.course?.label || 'Session' }}
               </p>
               <p class="text-sm text-slate-600">
-                {{ formatDateTime(session.start_at) }}
+                <DateTimeDisplay :date="session.start_at" type="datetime" />
               </p>
               <p
                 v-if="session.subscription?.teacher?.display_name"

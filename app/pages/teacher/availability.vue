@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { z } from 'zod'
+import TimeDisplay from '~/components/common/TimeDisplay.vue'
 
 definePageMeta({
   middleware: 'auth',
@@ -248,7 +249,7 @@ async function toggleActive(rule: any) {
               <div>
                 <p class="font-semibold text-slate-900">{{ getWeekdayLabel(rule.weekday) }}</p>
                 <p class="text-sm text-slate-600">
-                  {{ rule.start_time }} - {{ rule.end_time }}
+                  <TimeDisplay :time="rule.start_time" /> - <TimeDisplay :time="rule.end_time" />
                 </p>
               </div>
             </div>

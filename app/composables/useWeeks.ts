@@ -136,7 +136,42 @@ export function useWeeks() {
   }
 
   /**
+   * Reset a rejected week back to draft so it can be edited and resubmitted
+   */
+  async function resetRejectedWeek(weekId: string): Promise<SubscriptionWeek | null> {
+    isLoading.value = true
+    error.value = null
+
+    try {
+      const data = await updateItem<SubscriptionWeek>({
+        collection: 'subscription_weeks',
+        id: weekId,
+        item: {
+          status: 'draft',
+          submitted_at: null,
+          reviewed_at: null
+        }
+      })
+
+      if (data) {
+        const index = weeks.value.findIndex(w => w.id === weekId)
+        if (index !== -1) {
+          weeks.value[index] = data
+        }
+        currentWeek.value = data
+      }
+      return data || null
+    } catch (err: any) {
+      error.value = err?.data?.errors?.[0]?.message || err?.message || 'Failed to reset week'
+      return null
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  /**
    * Get current or create new week
+   * If week is rejected, automatically reset it to draft so it can be edited
    */
   async function getOrCreateWeek(subscriptionId: string, weekIndex: number): Promise<SubscriptionWeek | null> {
     await fetchWeeks(subscriptionId)
@@ -144,6 +179,9 @@ export function useWeeks() {
     let week = weeks.value.find(w => w.week_index === weekIndex)
     if (!week) {
       week = await createWeek({ subscription: subscriptionId, week_index: weekIndex })
+    } else if (week.status === 'rejected') {
+      // Automatically reset rejected weeks to draft so they can be edited
+      week = await resetRejectedWeek(week.id)
     }
     
     currentWeek.value = week || null
@@ -158,6 +196,7 @@ export function useWeeks() {
     fetchWeeks,
     createWeek,
     submitWeek,
+    resetRejectedWeek,
     getStatusColor,
     getOrCreateWeek
   }

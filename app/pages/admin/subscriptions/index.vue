@@ -140,15 +140,7 @@ async function assignTeacher(subscriptionId: string) {
   }
 }
 
-const { formatDateOnly } = useTimezone()
-
-function formatDate(dateStr: string): string {
-  return formatDateOnly(dateStr, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  })
-}
+// Removed formatDate - using DateTimeDisplay component instead
 
 function getStatusColor(status: string): string {
   const colors: Record<string, string> = {
@@ -268,7 +260,7 @@ function getStatusColor(status: string): string {
             {{ row.original.sessions_remaining }}/{{ row.original.sessions_total }}
           </template>
           <template #date_created-cell="{ row }">
-            {{ formatDate(row.original.date_created) }}
+            <DateTimeDisplay :date="row.original.date_created" type="date" />
           </template>
           <template #actions-cell="{ row }">
             <UButton

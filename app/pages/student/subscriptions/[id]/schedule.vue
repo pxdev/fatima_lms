@@ -46,6 +46,7 @@ const errorMessage = ref<string>('')
 const successMessage = ref<string>('')
 const isPageLoading = ref(true)
 const isDeleting = ref(false)
+const wasRejected = ref(false) // Track if current week was just reset from rejected
 
 // Computed
 const minDate = computed(() => today(getLocalTimeZone()))
@@ -71,7 +72,7 @@ const requiredSlots = computed(() => {
   return selectedPackage.value?.sessions_per_week || 2
 })
 const canSubmit = computed(() => 
-  currentWeek.value?.status === 'draft' && slots.value.length >= requiredSlots.value
+  (currentWeek.value?.status === 'draft' || currentWeek.value?.status === 'rejected') && slots.value.length >= requiredSlots.value
 )
 const hasTeacherAvailability = computed(() => 
   teacherAvailability.value.filter(r => r.is_active).length > 0
@@ -155,37 +156,6 @@ const { start: startSuccessTimer } = useTimeoutFn(() => {
 
 // ========== Computed Properties ==========
 
-/**
- * Calculate overall progress across all weeks
- */
-const overallProgress = computed(() => {
-  if (!currentSubscription.value) {
-    return { completed: 0, total: 0, percentage: 0 }
-  }
-  
-  const maxWeeks = totalWeeks.value
-  let completedWeeks = 0
-  
-  for (let i = 1; i <= maxWeeks; i++) {
-    const week = weeks.value.find(w => w.week_index === i)
-    if (!week) continue
-    
-    if (week.status === 'submitted' || week.status === 'approved') {
-      completedWeeks++
-    } else if (week.status === 'draft') {
-      const weekSlots = allSlots.value.filter(slot => slot.week === week.id)
-      if (weekSlots.length >= requiredSlots.value) {
-        completedWeeks++
-      }
-    }
-  }
-  
-  return {
-    completed: completedWeeks,
-    total: maxWeeks,
-    percentage: maxWeeks > 0 ? Math.round((completedWeeks / maxWeeks) * 100) : 0
-  }
-})
 
 /**
  * Get available slots for the selected date
@@ -227,12 +197,13 @@ function isWeekComplete(weekIndex: number): boolean {
 /**
  * Get week status for display
  */
-function getWeekStatus(weekIndex: number): 'complete' | 'incomplete' | 'submitted' | 'approved' {
+function getWeekStatus(weekIndex: number): 'complete' | 'incomplete' | 'submitted' | 'approved' | 'rejected' {
   const week = weeks.value.find(w => w.week_index === weekIndex)
   if (!week) return 'incomplete'
   
   if (week.status === 'approved') return 'approved'
   if (week.status === 'submitted') return 'submitted'
+  if (week.status === 'rejected') return 'rejected'
   if (week.status === 'draft') {
     return isWeekComplete(weekIndex) ? 'complete' : 'incomplete'
   }
@@ -321,12 +292,12 @@ async function fetchAllSlots() {
 // ========== Formatting Functions ==========
 
 /**
- * Format the selected date for display
+ * Get the selected date as ISO string for DateTimeDisplay component
  */
-function formatSelectedDate(): string {
-  if (!selectedDate.value) return ''
+function getSelectedDateISO(): string | null {
+  if (!selectedDate.value) return null
   const date = dateValueToDate(selectedDate.value as DateValue)
-  return format(date, 'EEEE, MMMM d, yyyy')
+  return date.toISOString()
 }
 
 /**
@@ -339,14 +310,18 @@ function getSelectedWeekday(): string {
 }
 
 /**
- * Format time for display (HH:mm -> h:mm AM/PM)
+ * Create a datetime ISO string from selected date + time string (HH:mm format)
+ * Used for DateTimeDisplay component
  */
-function formatTime(time: string): string {
+function createDateTimeISO(time: string): string | null {
+  if (!selectedDate.value || !time) return null
+  const date = dateValueToDate(selectedDate.value as DateValue)
   const { hours, minutes } = parseTime(time)
-  const period = hours >= 12 ? 'PM' : 'AM'
-  const displayHours = hours % 12 || 12
-  return `${displayHours}:${String(minutes).padStart(2, '0')} ${period}`
+  const datetime = new Date(date.getFullYear(), date.getMonth(), date.getDate(), hours, minutes)
+  return datetime.toISOString()
 }
+
+// Removed getFormattedSlotTime - using SlotTimeDisplay component instead
 
 // ========== Watchers ==========
 
@@ -366,6 +341,16 @@ watch(selectedDate, (newDate) => {
  */
 async function loadWeek(weekIndex: number) {
   selectedWeekIndex.value = weekIndex
+  wasRejected.value = false // Reset flag
+  
+  // Check if week exists and is rejected before loading
+  await fetchWeeks(subscriptionId.value)
+  const existingWeek = weeks.value.find(w => w.week_index === weekIndex)
+  
+  if (existingWeek && existingWeek.status === 'rejected') {
+    wasRejected.value = true // Mark that this week was rejected
+  }
+  
   const week = await getOrCreateWeek(subscriptionId.value, weekIndex)
   if (week) {
     await fetchSlots(week.id)
@@ -529,10 +514,7 @@ onMounted(async () => {
       fetchPackages()
     ])
 
-    // Note: Removed auto-fix logic to prevent overriding admin manual changes
-    // If sessions_total needs to be corrected, it should be done manually in Directus admin panel
-    // or through a proper admin interface, not automatically on page load
-
+ 
     // Fetch teacher availability
     // Handle Directus relation: teacher can be ID string or expanded object
     if (currentSubscription.value?.teacher) {
@@ -597,27 +579,6 @@ onMounted(async () => {
         </p>
       </div>
 
-      <!-- Progress Bar at Top -->
-      <UCard v-if="currentSubscription" class="mb-6">
-        <div class="space-y-3">
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold text-slate-700">Total Progress</span>
-            <span class="text-lg font-bold" :class="overallProgress.percentage === 100 ? 'text-green-600' : 'text-primary-600'">
-              {{ overallProgress.percentage }}%
-            </span>
-          </div>
-          <div class="h-3 overflow-hidden rounded-full bg-slate-200">
-            <div
-              class="h-full rounded-full transition-all duration-500 ease-out"
-              :class="overallProgress.percentage === 100 ? 'bg-gradient-to-r from-green-500 to-green-600' : 'bg-gradient-to-r from-primary-500 to-primary-600'"
-              :style="{ width: `${overallProgress.percentage}%` }"
-            />
-          </div>
-          <p class="text-xs text-slate-500 text-center">
-            {{ overallProgress.completed }} of {{ overallProgress.total }} weeks completed
-          </p>
-        </div>
-      </UCard>
 
       <!-- Loading State -->
       <div v-if="isPageLoading" class="space-y-6">
@@ -685,6 +646,19 @@ onMounted(async () => {
           class="mb-6"
         />
 
+        <!-- Rejected Week Alert -->
+        <UAlert
+          v-if="wasRejected && currentWeek"
+          color="error"
+          variant="soft"
+          icon="i-heroicons-exclamation-triangle"
+          title="This week was rejected by your teacher"
+          description="Your teacher has rejected the time slots for this week. Please choose different time slots below and resubmit for approval."
+          class="mb-6"
+          closable
+          @close="wasRejected = false"
+        />
+
         <!-- Enhanced Week Steps -->
         <UCard class="mb-6">
           <div class="space-y-4">
@@ -700,7 +674,7 @@ onMounted(async () => {
                   {{ currentWeek.status }}
                 </UBadge>
                 <UBadge
-                  v-if="currentWeek && currentWeek.status === 'draft'"
+                  v-if="currentWeek && (currentWeek.status === 'draft' || currentWeek.status === 'rejected')"
                   :color="(isWeekComplete(selectedWeekIndex) ? 'success' : 'warning') as any"
                   variant="soft"
                   size="lg"
@@ -725,9 +699,10 @@ onMounted(async () => {
                   <div
                     class="relative flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all duration-200"
                     :class="{
-                      'border-primary-500 bg-primary-500 text-white scale-110': selectedWeekIndex === i && getWeekStatus(i) === 'incomplete',
+                      'border-primary-500 bg-primary-500 text-white scale-110': selectedWeekIndex === i && (getWeekStatus(i) === 'incomplete' || getWeekStatus(i) === 'rejected'),
                       'border-green-500 bg-green-500 text-white': getWeekStatus(i) === 'complete' || getWeekStatus(i) === 'approved',
                       'border-amber-500 bg-amber-500 text-white': getWeekStatus(i) === 'submitted',
+                      'border-red-500 bg-red-500 text-white': getWeekStatus(i) === 'rejected' && selectedWeekIndex !== i,
                       'border-slate-300 bg-white text-slate-400 hover:border-primary-300 hover:bg-slate-50': selectedWeekIndex !== i && getWeekStatus(i) === 'incomplete'
                     }"
                   >
@@ -741,6 +716,12 @@ onMounted(async () => {
                     <UIcon
                       v-else-if="getWeekStatus(i) === 'submitted'"
                       name="i-heroicons-clock"
+                      class="h-5 w-5"
+                    />
+                    <!-- X Icon for Rejected -->
+                    <UIcon
+                      v-else-if="getWeekStatus(i) === 'rejected'"
+                      name="i-heroicons-x-mark"
                       class="h-5 w-5"
                     />
                     <!-- Week Number for Incomplete -->
@@ -774,6 +755,7 @@ onMounted(async () => {
                   class="h-0.5 w-8 sm:w-12 mx-1 transition-colors duration-200"
                   :class="{
                     'bg-green-500': getWeekStatus(i) === 'complete' || getWeekStatus(i) === 'approved' || getWeekStatus(i) === 'submitted',
+                    'bg-red-500': getWeekStatus(i) === 'rejected',
                     'bg-slate-200': getWeekStatus(i) === 'incomplete'
                   }"
                 />
@@ -831,7 +813,9 @@ onMounted(async () => {
                 <h2 class="text-lg font-semibold text-slate-900">
                   {{ getSelectedWeekday() }}'s Available Slots
                 </h2>
-                <p class="text-sm text-slate-500">{{ formatSelectedDate() }}</p>
+                <p class="text-sm text-slate-500">
+                  <DateTimeDisplay v-if="getSelectedDateISO()" :date="getSelectedDateISO()" type="date" :format-options="{ weekday: 'long' }" />
+                </p>
               </div>
             </template>
 
@@ -873,11 +857,11 @@ onMounted(async () => {
                     <div class="flex-1">
                       <div class="flex items-baseline gap-2">
                         <p class="text-xl font-bold text-slate-900">
-                          {{ formatTime(slot.start_time) }}
+                          <DateTimeDisplay v-if="createDateTimeISO(slot.start_time)" :date="createDateTimeISO(slot.start_time)!" type="time" />
                         </p>
                         <UIcon name="i-heroicons-arrow-right" class="h-4 w-4 text-slate-400" />
                         <p class="text-xl font-bold text-slate-900">
-                          {{ formatTime(slot.end_time) }}
+                          <DateTimeDisplay v-if="createDateTimeISO(slot.end_time)" :date="createDateTimeISO(slot.end_time)!" type="time" />
                         </p>
                       </div>
                       <div class="flex items-center gap-2 mt-1">
@@ -1006,10 +990,10 @@ onMounted(async () => {
                         <span class="text-[10px] font-bold">{{ slots.indexOf(slot) + 1 }}</span>
                       </div>
                     </div>
-                    <div class="flex-1">
-                      <p class="text-lg font-bold text-slate-900">{{ formatSlotTime(slot) }}</p>
-                      <p v-if="slot.note" class="text-sm text-slate-500 mt-0.5">{{ slot.note }}</p>
-                    </div>
+                     <div class="flex-1">
+                       <SlotTimeDisplay :start-at="slot.start_at" :end-at="slot.end_at" />
+                       <p v-if="slot.note" class="text-sm text-slate-500 mt-0.5">{{ slot.note }}</p>
+                     </div>
                   </div>
                   <UButton
                     v-if="currentWeek?.status === 'draft'"

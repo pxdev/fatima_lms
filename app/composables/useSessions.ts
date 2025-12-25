@@ -183,17 +183,29 @@ export function useSessions() {
   }
 
   /**
-   * Format session time
+   * Format session time (respects global timezone toggle)
    */
   function formatSessionTime(session: Session): string {
+    const { isToggled } = useTimezoneToggle()
+    const { formatDate, formatTime } = useTimezone()
+    const { formatDateRaw, formatTimeRaw } = useTimezone()
+    
     const start = parseISO(session.start_at)
     const end = parseISO(session.end_at)
     
-    const dateStr = format(start, 'EEEE, MMMM d')
-    const startTime = format(start, 'h:mm a')
-    const endTime = format(end, 'h:mm a')
-    
-    return `${dateStr}, ${startTime} - ${endTime}`
+    if (isToggled.value) {
+      // Use timezone-aware formatting
+      const dateStr = formatDate(start, { weekday: 'long', month: 'long', day: 'numeric' })
+      const startTime = formatTime(start)
+      const endTime = formatTime(end)
+      return `${dateStr}, ${startTime} - ${endTime}`
+    } else {
+      // Use raw formatting (as stored in Directus)
+      const dateStr = formatDateRaw(start, { format: 'EEEE, MMMM d' })
+      const startTime = formatTimeRaw(start, { format: 'h:mm a' })
+      const endTime = formatTimeRaw(end, { format: 'h:mm a' })
+      return `${dateStr}, ${startTime} - ${endTime}`
+    }
   }
 
   /**

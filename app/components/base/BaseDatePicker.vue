@@ -1,9 +1,13 @@
 <script setup>
   import { DatePicker } from 'v-calendar';
   import 'v-calendar/dist/style.css';
-  import { format, sub } from 'date-fns';
+  import { sub } from 'date-fns';
 
   const { t } = useI18n();
+  
+  // Use global timezone toggle
+  const { isToggled } = useTimezoneToggle()
+  const { formatDate, formatDateRaw } = useTimezone()
 
   const props = defineProps({
     label: {
@@ -65,8 +69,14 @@
             v-if="props.isRange"
             :size="props.size"
             :value="
-              date.start && date.start
-                ? format(date.start, props.dateFormat) + ' &#8652; ' + format(date.end, props.dateFormat)
+              date.start && date.end
+                ? (isToggled 
+                    ? formatDate(date.start, { month: 'short', day: 'numeric', year: 'numeric' }) 
+                    : formatDateRaw(date.start, { format: props.dateFormat === 'PP' ? 'MMM d, yyyy' : props.dateFormat })
+                  ) + ' &#8652; ' + (isToggled 
+                    ? formatDate(date.end, { month: 'short', day: 'numeric', year: 'numeric' }) 
+                    : formatDateRaw(date.end, { format: props.dateFormat === 'PP' ? 'MMM d, yyyy' : props.dateFormat })
+                  )
                 : ''
             "
             icon="i-solar-calendar-linear"
@@ -74,7 +84,10 @@
           <u-input
             v-else
             :size="props.size"
-            :value="date ? format(date, props.dateFormat) : ''"
+            :value="date ? (isToggled 
+              ? formatDate(date, { month: 'short', day: 'numeric', year: 'numeric' }) 
+              : formatDateRaw(date, { format: props.dateFormat === 'PP' ? 'MMM d, yyyy' : props.dateFormat })
+            ) : ''"
             icon="i-hugeicons-calendar-03"
           />
         </slot>
