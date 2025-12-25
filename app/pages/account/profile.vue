@@ -43,6 +43,7 @@ const schema = z.object({
   display_name: z.string().trim().min(2, 'Name must be at least 2 characters'),
   phone: z.string().optional().nullable(),
   timezone: z.string().min(1, 'Please select a timezone'),
+  use_timezone: z.boolean(),
   bio: z.string().optional().nullable(),
   languages: z.string().optional().nullable()
 })
@@ -56,6 +57,7 @@ const state = reactive<ProfileForm>({
   display_name: '',
   phone: '',
   timezone: 'Asia/Riyadh',
+  use_timezone: true, // Default to true (active)
   bio: '',
   languages: ''
 })
@@ -73,6 +75,8 @@ onMounted(async () => {
     state.display_name = profile.value.display_name || ''
     state.phone = profile.value.phone || ''
     state.timezone = profile.value.timezone || 'Asia/Riyadh'
+    // Default to true if not set (for backward compatibility)
+    state.use_timezone = profile.value.use_timezone !== false
     state.bio = profile.value.bio || ''
     state.languages = profile.value.languages || ''
   }
@@ -93,12 +97,13 @@ async function doSubmit() {
   formError.value = ''
 
   try {
-    const { display_name, phone, timezone, bio, languages } = state
+    const { display_name, phone, timezone, use_timezone, bio, languages } = state
 
     const updated = await updateProfile({
       display_name,
       phone: phone || null,
       timezone,
+      use_timezone,
       bio: bio || null,
       languages: languages?.trim() || null
     })
@@ -210,6 +215,22 @@ function handleSubmit() {
               :disabled="isSaving"
               class="w-full"
             />
+          </UFormField>
+
+          <!-- Use Timezone Toggle -->
+          <UFormField label="Convert Dates to My Timezone" name="use_timezone">
+            <template #hint>
+              <span class="text-xs">When enabled, all dates and times will be converted to your selected timezone for display</span>
+            </template>
+            <div class="flex items-center gap-3">
+              <USwitch
+                v-model="state.use_timezone"
+                :disabled="isSaving"
+              />
+              <span class="text-sm text-slate-600">
+                {{ state.use_timezone ? 'Enabled' : 'Disabled' }}
+              </span>
+            </div>
           </UFormField>
 
           <!-- Languages -->

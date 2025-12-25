@@ -121,9 +121,6 @@ const mainNavItems = computed(() => {
 
       <!-- Right Side Actions -->
       <div class="flex items-center gap-4">
-        <!-- Timezone Toggle Button -->
-        <TimezoneToggleButton />
-        
         <!-- Mobile Menu Button -->
         <UDropdownMenu
           :items="[

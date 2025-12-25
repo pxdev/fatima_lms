@@ -1,22 +1,9 @@
 <script setup lang="ts">
 import { parseISO } from 'date-fns'
+import SessionCard, { type SessionCardData } from './SessionCard.vue'
 
-interface SessionWithDetails {
-  id: string
-  start_at: string
-  end_at: string
-  status: string
-  zoom_join_url: string | null
-  subscription?: {
-    id: string
-    teacher?: {
-      display_name: string
-    } | null
-    course?: {
-      label: string
-    } | null
-  } | null
-}
+// Re-export the type for convenience
+export type SessionWithDetails = SessionCardData
 
 interface Props {
   sessions: SessionWithDetails[]
@@ -100,42 +87,7 @@ const filteredSessions = computed(() => {
   return list
 })
 
-function getStatusColor(status: string): string {
-  const colors: Record<string, string> = {
-    scheduled: 'info',
-    in_progress: 'warning',
-    completed: 'success',
-    cancelled: 'error',
-    student_no_show: 'error',
-    teacher_no_show: 'error',
-    student_requested_postpone: 'warning',
-    postpone_approved: 'neutral'
-  }
-  return colors[status] || 'neutral'
-}
-
-function getStatusLabel(status: string): string {
-  return status.replace(/_/g, ' ')
-}
-
-function getSessionIcon(status: string): string {
-  if (status === 'completed') return 'i-heroicons-check-circle'
-  if (status === 'cancelled') return 'i-heroicons-x-circle'
-  if (status.includes('no_show')) return 'i-heroicons-exclamation-circle'
-  if (status.includes('postpone')) return 'i-heroicons-arrow-path'
-  return 'i-heroicons-video-camera'
-}
-
-function canJoinSession(session: SessionWithDetails): boolean {
-  if (!session.zoom_join_url) return false
-  if (!['scheduled', 'in_progress'].includes(session.status)) return false
-
-  const start = parseISO(session.start_at)
-  const diffMinutes = (start.valueOf() - now.value.valueOf()) / (1000 * 60)
-  return diffMinutes <= 15
-}
-
-// Removed formatDateTime - using DateTimeDisplay component instead
+// Session card handles all display logic, so we only need filtering logic here
 </script>
 
 <template>
@@ -224,92 +176,13 @@ function canJoinSession(session: SessionWithDetails): boolean {
       v-else
       class="space-y-3"
     >
-      <UCard
+      <SessionCard
         v-for="session in filteredSessions"
         :key="session.id"
-        class="group"
-        :class="compact ? 'py-3 px-3 sm:px-4' : ''"
-      >
-        <div class="flex items-center justify-between gap-4">
-          <div class="flex items-center gap-4 min-w-0">
-            <div
-              class="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-xl flex-shrink-0 transition-colors duration-200"
-              :class="{
-                'bg-green-100': session.status === 'completed',
-                'bg-red-100': session.status === 'cancelled' || session.status.includes('no_show'),
-                'bg-amber-100': session.status.includes('postpone'),
-                'bg-primary-50': ['scheduled', 'in_progress'].includes(session.status),
-                'bg-slate-100': !['completed', 'cancelled'].includes(session.status) &&
-                  !session.status.includes('no_show') &&
-                  !session.status.includes('postpone') &&
-                  !['scheduled', 'in_progress'].includes(session.status)
-              }"
-            >
-              <UIcon
-                :name="getSessionIcon(session.status)"
-                class="h-6 w-6"
-                :class="{
-                  'text-green-600': session.status === 'completed',
-                  'text-red-500': session.status === 'cancelled' || session.status.includes('no_show'),
-                  'text-amber-600': session.status.includes('postpone'),
-                  'text-primary-600': ['scheduled', 'in_progress'].includes(session.status),
-                  'text-slate-500': !['completed', 'cancelled'].includes(session.status) &&
-                    !session.status.includes('no_show') &&
-                    !session.status.includes('postpone') &&
-                    !['scheduled', 'in_progress'].includes(session.status)
-                }"
-              />
-            </div>
-
-            <div class="min-w-0">
-              <p class="font-semibold text-slate-900 truncate">
-                {{ session.subscription?.course?.label || 'Session' }}
-              </p>
-              <p class="text-sm text-slate-600">
-                <DateTimeDisplay :date="session.start_at" type="datetime" />
-              </p>
-              <p
-                v-if="session.subscription?.teacher?.display_name"
-                class="text-xs text-slate-500 truncate"
-              >
-                with {{ session.subscription.teacher.display_name }}
-              </p>
-            </div>
-          </div>
-
-          <div class="flex flex-col sm:flex-row items-end sm:items-center gap-2 flex-shrink-0">
-            <UBadge
-              :color="getStatusColor(session.status)"
-              variant="soft"
-              size="sm"
-              class="capitalize"
-            >
-              {{ getStatusLabel(session.status) }}
-            </UBadge>
-
-            <UButton
-              v-if="session.zoom_join_url && ['scheduled', 'in_progress'].includes(session.status)"
-              :color="canJoinSession(session) ? 'primary' : 'neutral'"
-              :variant="canJoinSession(session) ? 'solid' : 'outline'"
-              size="sm"
-              :href="session.zoom_join_url"
-              target="_blank"
-              class="min-w-[120px]"
-            >
-              <UIcon
-                name="i-heroicons-video-camera"
-                class="mr-1.5 h-4 w-4"
-              />
-              <span class="hidden sm:inline">
-                {{ canJoinSession(session) ? 'Join Now' : 'View Link' }}
-              </span>
-              <span class="sm:hidden">
-                Join
-              </span>
-            </UButton>
-          </div>
-        </div>
-      </UCard>
+        :session="session"
+        :compact="compact"
+        :show-teacher="true"
+      />
     </div>
   </div>
 </template>

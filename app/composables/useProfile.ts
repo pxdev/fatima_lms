@@ -12,6 +12,7 @@ interface Profile {
   display_name: string
   phone: string | null
   timezone: string
+  use_timezone: boolean
   avatar: string | null
   bio: string | null
   languages: string | null
@@ -22,6 +23,7 @@ interface ProfileUpdatePayload {
   display_name?: string
   phone?: string | null
   timezone?: string
+  use_timezone?: boolean
   avatar?: string | null
   bio?: string | null
   languages?: string | null
@@ -97,6 +99,7 @@ export function useProfile() {
       if (data.display_name !== undefined) payload.display_name = data.display_name
       if (data.phone !== undefined) payload.phone = data.phone || null
       if (data.timezone !== undefined) payload.timezone = data.timezone
+      if (data.use_timezone !== undefined) payload.use_timezone = data.use_timezone
       if (data.avatar !== undefined) payload.avatar = data.avatar
       if (data.bio !== undefined) payload.bio = data.bio || null
       if (data.languages !== undefined) payload.languages = data.languages

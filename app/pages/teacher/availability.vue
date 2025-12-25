@@ -28,6 +28,12 @@ const {
 const showModal = ref(false)
 const editingRule = ref<any>(null)
 const deleteConfirm = ref<string | null>(null)
+const showDeleteModal = computed({
+  get: () => !!deleteConfirm.value,
+  set: (value) => {
+    if (!value) deleteConfirm.value = null
+  }
+})
 const formError = ref<string | null>(null)
 
 // Throttled actions for rate limiting
@@ -112,11 +118,22 @@ function openAddModal() {
 function openEditModal(rule: any) {
   editingRule.value = rule
   state.weekday = rule.weekday
-  state.start_time = rule.start_time
-  state.end_time = rule.end_time
+  // Normalize time from server (HH:mm:ss) to form format (HH:mm) for time input
+  state.start_time = rule.start_time ? rule.start_time.substring(0, 5) : '09:00'
+  state.end_time = rule.end_time ? rule.end_time.substring(0, 5) : '17:00'
   state.is_active = rule.is_active
   formError.value = null
   showModal.value = true
+}
+
+// Helper function to ensure time is in HH:mm:ss format for server
+function normalizeTimeForServer(time: string): string {
+  // HTML time input returns "HH:mm", server expects "HH:mm:ss"
+  if (time && time.length === 5 && time.includes(':')) {
+    return `${time}:00`
+  }
+  // If already in HH:mm:ss format, return as is
+  return time
 }
 
 async function doSubmit() {
@@ -124,9 +141,13 @@ async function doSubmit() {
 
   formError.value = null
 
+  // Normalize times to HH:mm:ss format for server (add seconds if missing)
+  const startTime = normalizeTimeForServer(state.start_time)
+  const endTime = normalizeTimeForServer(state.end_time)
+
   // Check for duplicate slot (frontend validation)
   const excludeId = editingRule.value?.id
-  if (isDuplicateSlot(state.weekday, state.start_time, state.end_time, excludeId)) {
+  if (isDuplicateSlot(state.weekday, startTime, endTime, excludeId)) {
     formError.value = 'A time slot with the same day and times already exists'
     return
   }
@@ -135,16 +156,16 @@ async function doSubmit() {
     if (editingRule.value) {
       await updateRule(editingRule.value.id, {
         weekday: state.weekday,
-        start_time: state.start_time,
-        end_time: state.end_time,
+        start_time: startTime, // Send in HH:mm:ss format
+        end_time: endTime, // Send in HH:mm:ss format
         is_active: state.is_active
       })
     } else {
       await createRule({
         teacher: profile.value.id,
         weekday: state.weekday,
-        start_time: state.start_time,
-        end_time: state.end_time,
+        start_time: startTime, // Send in HH:mm:ss format
+        end_time: endTime, // Send in HH:mm:ss format
         is_active: state.is_active
       })
     }
@@ -188,6 +209,9 @@ async function toggleActive(rule: any) {
 
 <template>
   <div>
+
+    <Debug>{{ rules }}</Debug>
+
     <!-- Breadcrumbs -->
     <UBreadcrumb 
       :items="[
@@ -359,7 +383,7 @@ async function toggleActive(rule: any) {
       </UModal>
 
       <!-- Delete Confirmation Modal -->
-      <UModal v-model:open="deleteConfirm">
+      <UModal v-model:open="showDeleteModal">
         <template #content>
           <UCard>
             <template #header>

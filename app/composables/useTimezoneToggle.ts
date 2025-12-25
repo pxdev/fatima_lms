@@ -1,41 +1,28 @@
 /**
  * Global Timezone Toggle Composable
- * Provides a single toggle state for all date/time displays across the application
+ * Uses the profile's use_timezone field instead of global state
+ * The toggle is now managed in the profile page
  */
 
 export function useTimezoneToggle() {
-  // Global toggle state - false = raw (as stored), true = user timezone
-  const isToggled = useState('timezone-toggle', () => false)
-  
   const { profile } = useProfile()
   
-  // Only allow toggling if user has timezone set
+  // Only allow timezone conversion if user has timezone set
   const hasTimezone = computed(() => {
     return !!profile.value?.timezone
   })
   
-  // Computed that returns the effective toggle state (only true if user has timezone)
-  const effectiveToggle = computed(() => {
-    return hasTimezone.value && isToggled.value
+  // Use profile's use_timezone field (defaults to true if not set)
+  // This replaces the global toggle state - the toggle is now in the profile page
+  const isToggled = computed(() => {
+    if (!hasTimezone.value) return false
+    // Default to true if use_timezone is not set (for backward compatibility)
+    return profile.value?.use_timezone !== false
   })
   
-  function toggle() {
-    if (hasTimezone.value) {
-      isToggled.value = !isToggled.value
-    }
-  }
-  
-  function setToggled(value: boolean) {
-    if (hasTimezone.value) {
-      isToggled.value = value
-    }
-  }
-  
   return {
-    isToggled: effectiveToggle,
-    hasTimezone,
-    toggle,
-    setToggled
+    isToggled,
+    hasTimezone
   }
 }
 
